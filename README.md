@@ -4,6 +4,7 @@
 
 ![Omni Z App Preview](omni-z-preview.svg)
 
+Visit Here : [omni-z.up.railway.app](https://omni-z.up.railway.app/)
 <br/>
 
 [![React](https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react)](https://react.dev)
