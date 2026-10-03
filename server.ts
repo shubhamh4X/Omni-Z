@@ -17,16 +17,21 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Initialize Google GenAI
-const apiKey = process.env.GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({
-  apiKey,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Initialize Google GenAI with dynamic key retrieval
+function getApiKey(): string {
+  return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
+}
+
+function getAiClient(customKey?: string): GoogleGenAI {
+  return new GoogleGenAI({
+    apiKey: customKey || getApiKey(),
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
     },
-  },
-});
+  });
+}
 
 // Helper to run Python Vector DB CLI
 function runVectorDb(cmd: string, payload?: any): Promise<any> {
@@ -88,14 +93,15 @@ function runPythonExecutor(code: string): Promise<any> {
 let embeddingApiDisabledUntil = 0;
 
 async function getGeminiEmbedding(text: string): Promise<number[] | null> {
-  if (!apiKey || !text) return null;
+  const currentKey = getApiKey();
+  if (!currentKey || !text) return null;
   // If circuit breaker is active, use fast local Python vectorizer
   if (Date.now() < embeddingApiDisabledUntil) {
     return null;
   }
 
   try {
-    const res = await ai.models.embedContent({
+    const res = await getAiClient(currentKey).models.embedContent({
       model: 'gemini-embedding-2-preview',
       contents: text.slice(0, 2000),
     });
@@ -134,7 +140,7 @@ async function generateAiImage(prompt: string, aspectRatio = '1:1'): Promise<{ u
   // 1. Attempt native image model only if prepayment credits are not depleted
   if (!nativeImageGenDisabled) {
     try {
-      const res = await ai.models.generateContent({
+      const res = await getAiClient().models.generateContent({
         model: 'gemini-3.1-flash-lite-image',
         contents: cleanPrompt,
         config: {
@@ -211,7 +217,7 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
         apiKey: customClientKey,
         httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
       })
-    : ai;
+    : getAiClient();
 
   // Use free-tier models: gemini-3.8-flash and gemini-3.1-flash-lite. Never call paid-only models that yield 402.
   const requestedModel = params.model;
@@ -320,9 +326,10 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
 app.get('/api/status', async (_req: Request, res: Response) => {
   try {
     const dbStats = await runVectorDb('stats');
+    const currentKey = getApiKey();
     res.json({
       status: 'ok',
-      hasApiKey: Boolean(apiKey),
+      hasApiKey: Boolean(currentKey),
       model: 'gemini-3.8-flash',
       vectorDb: dbStats,
       timestamp: new Date().toISOString(),
@@ -485,9 +492,64 @@ app.post('/api/chat', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Message or attachment is required' });
     }
 
-    if (!apiKey) {
-      return res.status(500).json({
-        error: 'API key is not configured in environment variables. Please configure it in Settings > Secrets.',
+    const clientProvidedKey = (req.headers['x-gemini-api-key'] as string) || req.body.customApiKey;
+    const effectiveApiKey = clientProvidedKey || getApiKey();
+
+    if (!effectiveApiKey) {
+      // Check if user is asking for python/statistics execution
+      const isPythonRequest = /python|code|script|statistics|benchmark|table|calculate/i.test(message);
+      
+      let fallbackText = `### Google Gemini API Notice\n\nThe **GEMINI_API_KEY** is not yet connected to this applet.\n\nTo activate full Gemini reasoning and live web search:\n1. Open **Settings > Secrets** in the Google AI Studio menu.\n2. Select or paste your active **GEMINI_API_KEY**.\n3. The AI agent will immediately connect.\n\n---`;
+
+      const codeBlocks: Array<{ language: string; code: string }> = [];
+
+      if (isPythonRequest) {
+        const demoScript = `import time
+import math
+import statistics
+
+# 1. Benchmark computational task
+data = [math.sin(i * 0.05) * 100 + (i % 7) for i in range(10000)]
+
+start_time = time.perf_counter()
+mean_val = statistics.mean(data)
+stdev_val = statistics.stdev(data)
+median_val = statistics.median(data)
+min_val = min(data)
+max_val = max(data)
+duration_ms = (time.perf_counter() - start_time) * 1000
+
+# 2. Output formatted summary table
+print("=" * 56)
+print(f"{'METRIC':<20} | {'VALUE':<16} | {'STATUS':<12}")
+print("=" * 56)
+print(f"{'Sample Count':<20} | {len(data):<16} | {'Processed':<12}")
+print(f"{'Mean':<20} | {mean_val:<16.4f} | {'Normal':<12}")
+print(f"{'Median':<20} | {median_val:<16.4f} | {'Verified':<12}")
+print(f"{'Std Deviation':<20} | {stdev_val:<16.4f} | {'Nominal':<12}")
+print(f"{'Min / Max':<20} | {min_val:.1f} / {max_val:.1f}{'':<6} | {'Bounded':<12}")
+print(f"{'Execution Time':<20} | {duration_ms:<16.3f} ms | {'Optimal':<12}")
+print("=" * 56)
+`;
+        try {
+          const execResult = await runPythonExecutor(demoScript);
+          fallbackText += `\n\n### Native Python Sandbox Execution Result\n\nWhile connecting your Gemini key, Omni Z's native Python backend executed the benchmarking and statistics script:\n\n\`\`\`python\n${demoScript}\`\`\`\n\n**Standard Output:**\n\`\`\`text\n${execResult.stdout || 'Executed successfully.'}\n\`\`\``;
+          codeBlocks.push({ language: 'python', code: demoScript });
+        } catch (e) {
+          fallbackText += `\n\n\`\`\`python\n${demoScript}\`\`\``;
+        }
+      }
+
+      return res.json({
+        text: fallbackText,
+        images: [],
+        sources: [],
+        webSearchQueries: [],
+        vectorMemories: [],
+        codeBlocks,
+        autoSavedMemory: null,
+        model: 'python-sandbox',
+        needsApiKey: true,
       });
     }
 
@@ -648,7 +710,6 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
     }
 
     const targetModel = 'gemini-3.8-flash';
-    const clientProvidedKey = (req.headers['x-gemini-api-key'] as string) || req.body.customApiKey;
     // Call AI model with automatic exponential backoff retry and free tier failover
     const response = await generateWithRetry(
       {
