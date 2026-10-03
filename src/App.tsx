@@ -5,7 +5,7 @@ import { ChatView } from './components/ChatView';
 import { ChatMessage, Attachment, ChatSession } from './types';
 import { useAuth } from './context/AuthContext';
 import { db } from './firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDocs, collection, query, orderBy, limit } from 'firebase/firestore';
 
 const INITIAL_SESSION_ID = 'session_default';
 
@@ -67,9 +67,65 @@ export default function App() {
     } catch (e) {}
   }, [activeSessionId]);
 
+  // Load sessions from Firestore when user logs in with Google
+  useEffect(() => {
+    if (!user || user.isGuest) return;
+
+    let isMounted = true;
+    const loadFromFirestore = async () => {
+      try {
+        const querySnapshot = await getDocs(
+          query(
+            collection(db, 'users', user.uid, 'sessions'),
+            orderBy('updatedAt', 'desc'),
+            limit(20)
+          )
+        );
+        if (!isMounted || querySnapshot.empty) return;
+
+        const loadedSessions: ChatSession[] = [];
+        querySnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          let parsedMessages: ChatMessage[] = [];
+          if (data.messages) {
+            try {
+              parsedMessages = typeof data.messages === 'string' ? JSON.parse(data.messages) : data.messages;
+            } catch {}
+          }
+          loadedSessions.push({
+            id: data.id || docSnap.id,
+            title: cleanTitle(data.title || 'Conversation'),
+            messages: parsedMessages,
+            createdAt: data.createdAt || Date.now(),
+            updatedAt: data.updatedAt || Date.now(),
+          });
+        });
+
+        if (loadedSessions.length > 0 && isMounted) {
+          setSessions((prev) => {
+            const merged = [...loadedSessions];
+            for (const local of prev) {
+              if (!merged.some((m) => m.id === local.id) && local.messages.length > 0) {
+                merged.push(local);
+              }
+            }
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('Firestore initial session load note:', err);
+      }
+    };
+
+    loadFromFirestore();
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
   // Sync sessions to Firestore when user is authenticated with Google
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.isGuest) return;
 
     const syncToFirestore = async () => {
       try {
@@ -81,6 +137,7 @@ export default function App() {
               id: s.id,
               userId: user.uid,
               title: s.title,
+              messages: JSON.stringify(s.messages.slice(-30)),
               updatedAt: s.updatedAt,
               createdAt: s.createdAt,
             },
