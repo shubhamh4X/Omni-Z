@@ -4,7 +4,6 @@
 
 ![Omni Z App Preview](omni-z-preview.svg)
 
-Visit Here : [omni-z.up.railway.app](https://omni-z.up.railway.app/)
 <br/>
 
 [![React](https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react)](https://react.dev)
@@ -23,6 +22,8 @@ Visit Here : [omni-z.up.railway.app](https://omni-z.up.railway.app/)
 ## 🌟 Overview
 
 **Omni Z** is a full-stack, next-generation AI assistant powered by Google's Gemini models. Featuring a clean, ultra-responsive dark interface, Omni Z provides a unified environment for multi-turn dialogue, real-time live search grounding, sandboxed Python code execution, mathematical LaTeX rendering, and multimodal analysis.
+
+Visit Here : https://omni-z.up.railway.app/
 
 ---
 
