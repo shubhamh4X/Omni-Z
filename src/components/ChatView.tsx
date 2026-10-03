@@ -469,8 +469,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <div className="max-w-3xl mx-auto min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center py-10 px-4">
             {/* Ring-like DNA structure logo */}
             <div className="mb-5 relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-rose-500/20 rounded-full blur-xl opacity-75 group-hover:opacity-100 transition-opacity animate-pulse" />
-              <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" galaxy={true} openAnimation={true} />
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-rose-500/20 rounded-full blur-xl opacity-75 group-hover:opacity-100 transition-opacity" />
+              <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" />
             </div>
 
             <h1 className="text-3xl sm:text-4xl font-normal text-[#e3e3e3] mb-3 tracking-tight font-sans">
@@ -821,7 +821,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   {selectedModel === 'omni-z-think' ? (
                     <Brain className="w-6 h-6 text-purple-400 animate-pulse" />
                   ) : (
-                    <DnaRingLogo className="w-7 h-7" animate={true} />
+                    <DnaRingLogo className="w-7 h-7" />
                   )}
                 </div>
                 <div className="flex-1 space-y-2">

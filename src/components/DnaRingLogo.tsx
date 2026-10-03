@@ -11,7 +11,7 @@ interface DnaRingLogoProps {
 export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
   className = 'w-7 h-7',
   animate = false,
-  galaxy = true,
+  galaxy = false,
   openAnimation = false,
   glow = true,
 }) => {
@@ -86,13 +86,7 @@ export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
     return { pathA: pA, pathB: pB, rungs: rungLines, nodes: nodeDots };
   }, []);
 
-  const animClass = openAnimation
-    ? 'animate-galaxy-whirl'
-    : galaxy
-    ? 'animate-galaxy-spin'
-    : animate
-    ? 'animate-spin-slow'
-    : '';
+  const animClass = animate ? 'animate-spin-slow' : '';
 
   return (
     <svg
