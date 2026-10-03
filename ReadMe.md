@@ -2,9 +2,9 @@
 
 <div align="center">
 
-<img src="./public/omni-z-banner.svg" alt="Omni Z Preview Banner" width="100%" />
+![Omni Z Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop)
 
-<br/><br/>
+<br/>
 
 [![React](https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
@@ -97,7 +97,7 @@
 
 ```
 ├── public/
-│   └── omni-z-banner.svg        # High-resolution vector preview banner
+│   └── omni-z-banner.svg        # Vector preview banner asset
 ├── server.ts                    # Full-stack Express server integrating Vite dev middleware
 ├── server/                      # Server-side controllers, API routes, and agent executors
 │   └── routes/                  # Express API proxy endpoints
