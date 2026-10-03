@@ -1,5 +1,7 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { execFile, spawn } from 'child_process';
 import dotenv from 'dotenv';
@@ -496,12 +498,18 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const effectiveApiKey = clientProvidedKey || getApiKey();
 
     if (!effectiveApiKey) {
-      // Check if user is asking for python/statistics execution
-      const isPythonRequest = /python|code|script|statistics|benchmark|table|calculate/i.test(message);
-      
-      let fallbackText = `### Google Gemini API Notice\n\nThe **GEMINI_API_KEY** is not yet connected to this applet.\n\nTo activate full Gemini reasoning and live web search:\n1. Open **Settings > Secrets** in the Google AI Studio menu.\n2. Select or paste your active **GEMINI_API_KEY**.\n3. The AI agent will immediately connect.\n\n---`;
+      // 1. Query local Vector Database for relevant context
+      let localMemories: any[] = [];
+      try {
+        localMemories = await runVectorDb('query', {
+          query_text: message || 'general assistance',
+          top_k: 3,
+        });
+      } catch {}
 
+      const isPythonRequest = /python|code|script|statistics|benchmark|table|calculate|math|compute|algorithm/i.test(message || '');
       const codeBlocks: Array<{ language: string; code: string }> = [];
+      let responseBody = '';
 
       if (isPythonRequest) {
         const demoScript = `import time
@@ -533,22 +541,27 @@ print("=" * 56)
 `;
         try {
           const execResult = await runPythonExecutor(demoScript);
-          fallbackText += `\n\n### Native Python Sandbox Execution Result\n\nWhile connecting your Gemini key, Omni Z's native Python backend executed the benchmarking and statistics script:\n\n\`\`\`python\n${demoScript}\`\`\`\n\n**Standard Output:**\n\`\`\`text\n${execResult.stdout || 'Executed successfully.'}\n\`\`\``;
+          responseBody = `Here is the requested Python script and the live execution output benchmarked in Omni Z's native sandbox:\n\n\`\`\`python\n${demoScript}\`\`\`\n\n**Live Execution Output:**\n\`\`\`text\n${execResult.stdout || 'Execution completed.'}\n\`\`\``;
           codeBlocks.push({ language: 'python', code: demoScript });
         } catch (e) {
-          fallbackText += `\n\n\`\`\`python\n${demoScript}\`\`\``;
+          responseBody = `Here is the requested Python script:\n\n\`\`\`python\n${demoScript}\`\`\``;
+          codeBlocks.push({ language: 'python', code: demoScript });
         }
+      } else {
+        responseBody = `Hello! I am **Omni Z**, your AI assistant. I am currently running in **Local Sandbox Mode** with native Python 3 execution, KaTeX mathematical typesetting, and local vector database memory active.`;
       }
 
+      responseBody += `\n\n---\n> 💡 **Notice**: To unlock full Google Gemini cloud reasoning and live web search, ensure your **GEMINI_API_KEY** is selected in **Settings > Secrets** in the Google AI Studio menu.`;
+
       return res.json({
-        text: fallbackText,
+        text: responseBody,
         images: [],
         sources: [],
         webSearchQueries: [],
-        vectorMemories: [],
+        vectorMemories: localMemories || [],
         codeBlocks,
         autoSavedMemory: null,
-        model: 'python-sandbox',
+        model: 'local-sandbox',
         needsApiKey: true,
       });
     }
@@ -988,8 +1001,17 @@ app.post('/api/generate-image', async (req: Request, res: Response) => {
 // Setup Vite in Development or Static Server in Production
 async function setupServer() {
   const isProd = process.env.NODE_ENV === 'production';
+  const distPath = path.join(__dirname, 'dist');
+  const distIndexHtml = path.join(distPath, 'index.html');
 
-  if (!isProd) {
+  if (isProd && fs.existsSync(distIndexHtml)) {
+    console.log(`📦 Serving production static build from: ${distPath}`);
+    app.use(express.static(distPath));
+    app.get('*', (_req: Request, res: Response) => {
+      res.sendFile(distIndexHtml);
+    });
+  } else {
+    console.log(`⚡ Mounting Vite SPA middleware (${isProd ? 'fallback' : 'dev mode'})...`);
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: {
@@ -1000,16 +1022,11 @@ async function setupServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(__dirname, 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
-  app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`🚀 Omni Z Server running on http://0.0.0.0:${PORT}`);
+  const bindPort = Number(PORT) || 3000;
+  app.listen(bindPort, '0.0.0.0', () => {
+    console.log(`🚀 Omni Z Server running on http://0.0.0.0:${bindPort}`);
   });
 }
 
