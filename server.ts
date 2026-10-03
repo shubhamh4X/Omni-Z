@@ -105,10 +105,19 @@ async function getGeminiEmbedding(text: string): Promise<number[] | null> {
     }
   } catch (e: any) {
     const errMsg = e?.message || '';
-    if (e?.status === 429 || errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('quota')) {
-      // Disable embedding API calls for 60 seconds to avoid exhausting quota
-      embeddingApiDisabledUntil = Date.now() + 60000;
-      console.warn('[AI Model] Embedding quota limit hit. Switching to local vectorizer for 60s.');
+    if (
+      e?.status === 402 ||
+      e?.status === 429 ||
+      errMsg.includes('402') ||
+      errMsg.includes('429') ||
+      errMsg.includes('depleted') ||
+      errMsg.includes('prepayment') ||
+      errMsg.includes('RESOURCE_EXHAUSTED') ||
+      errMsg.includes('quota')
+    ) {
+      // Disable embedding API calls for 10 minutes to avoid exhausting quota or failing on depleted credits
+      embeddingApiDisabledUntil = Date.now() + 10 * 60 * 1000;
+      console.warn('[AI Model] Embedding API quota/credits depleted. Switching to local Python vectorizer.');
     } else {
       console.warn('Embedding API unavailable, fallback will be used:', errMsg);
     }
@@ -116,35 +125,45 @@ async function getGeminiEmbedding(text: string): Promise<number[] | null> {
   return null;
 }
 
-// AI Image Generation with dual fallback
+// AI Image Generation with dual fallback and 402 circuit-breaker
+let nativeImageGenDisabled = false;
+
 async function generateAiImage(prompt: string, aspectRatio = '1:1'): Promise<{ url: string; prompt: string }> {
   const cleanPrompt = prompt.replace(/[^\w\s,.-]/g, ' ').trim().slice(0, 500);
 
-  // 1. Attempt primary native image model
-  try {
-    const res = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-lite-image',
-      contents: cleanPrompt,
-      config: {
-        imageConfig: {
-          aspectRatio: (['1:1', '3:4', '4:3', '9:16', '16:9'].includes(aspectRatio) ? aspectRatio : '1:1') as any,
+  // 1. Attempt native image model only if prepayment credits are not depleted
+  if (!nativeImageGenDisabled) {
+    try {
+      const res = await ai.models.generateContent({
+        model: 'gemini-3.1-flash-lite-image',
+        contents: cleanPrompt,
+        config: {
+          imageConfig: {
+            aspectRatio: (['1:1', '3:4', '4:3', '9:16', '16:9'].includes(aspectRatio) ? aspectRatio : '1:1') as any,
+          },
         },
-      },
-    });
-    for (const part of res.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData?.data) {
-        const mime = part.inlineData.mimeType || 'image/png';
-        return {
-          url: `data:${mime};base64,${part.inlineData.data}`,
-          prompt: cleanPrompt,
-        };
+      });
+      for (const part of res.candidates?.[0]?.content?.parts || []) {
+        if (part.inlineData?.data) {
+          const mime = part.inlineData.mimeType || 'image/png';
+          return {
+            url: `data:${mime};base64,${part.inlineData.data}`,
+            prompt: cleanPrompt,
+          };
+        }
+      }
+    } catch (err: any) {
+      const errMsg = err?.message || '';
+      if (err?.status === 402 || errMsg.includes('402') || errMsg.includes('depleted') || errMsg.includes('prepayment')) {
+        nativeImageGenDisabled = true;
+        console.warn('[Image Gen] Prepayment credits depleted for native model. Falling back seamlessly to high-res generator.');
+      } else {
+        console.warn('[Image Gen] Native image model unavailable, falling back to high-res generator:', errMsg.slice(0, 100));
       }
     }
-  } catch (err: any) {
-    console.warn('[Image Gen] Native image model unavailable, falling back to high-res image generator:', err?.message?.slice(0, 100));
   }
 
-  // 2. High-res AI Image Generation
+  // 2. High-res AI Image Generation (works without requiring prepayment credits)
   const dimensionsMap: Record<string, { w: number; h: number }> = {
     '1:1': { w: 1024, h: 1024 },
     '16:9': { w: 1280, h: 720 },
@@ -185,15 +204,25 @@ function isExplicitImageRequest(message: string): boolean {
 }
 
 // Resilient generateContent with exponential backoff for quota / rate limits
-async function generateWithRetry(params: any, maxRetries = 2): Promise<any> {
+async function generateWithRetry(params: any, customClientKey?: string, maxRetries = 2): Promise<any> {
   let lastError: any = null;
-  const requestedModel = params.model || 'gemini-3.8-flash';
-  // Valid current models from gemini-api skill:
+  const client = customClientKey
+    ? new GoogleGenAI({
+        apiKey: customClientKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      })
+    : ai;
+
+  // Use free-tier models: gemini-3.8-flash and gemini-3.1-flash-lite. Never call paid-only models that yield 402.
+  const requestedModel = params.model;
+  const safeModel = (requestedModel && !requestedModel.includes('pro') && !requestedModel.includes('image'))
+    ? requestedModel
+    : 'gemini-3.8-flash';
+
   const candidateModels = Array.from(new Set([
-    requestedModel,
+    safeModel,
     'gemini-3.8-flash',
     'gemini-3.1-flash-lite',
-    'gemini-3.1-pro-preview'
   ]));
 
   for (let modelIdx = 0; modelIdx < candidateModels.length; modelIdx++) {
@@ -202,7 +231,7 @@ async function generateWithRetry(params: any, maxRetries = 2): Promise<any> {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const response = await ai.models.generateContent(currentParams);
+        const response = await client.models.generateContent(currentParams);
         if (response) {
           (response as any).modelUsed = currentModel;
         }
@@ -210,6 +239,16 @@ async function generateWithRetry(params: any, maxRetries = 2): Promise<any> {
       } catch (err: any) {
         lastError = err;
         const errMsg = err?.message || String(err);
+        const isDepleted =
+          err?.status === 402 ||
+          errMsg.includes('402') ||
+          errMsg.includes('depleted') ||
+          errMsg.includes('prepayment');
+
+        if (isDepleted) {
+          console.warn(`[AI Model] Model ${currentModel} returned 402 (prepayment credits depleted). Skipping to next free tier candidate...`);
+          break; // Move to next free candidate model immediately
+        }
         const isNotFound =
           err?.status === 404 ||
           errMsg.includes('404') ||
@@ -251,6 +290,27 @@ async function generateWithRetry(params: any, maxRetries = 2): Promise<any> {
       }
     }
   }
+
+  const isDepletedOrQuota =
+    lastError?.status === 402 ||
+    lastError?.status === 429 ||
+    String(lastError?.message || '').includes('402') ||
+    String(lastError?.message || '').includes('429') ||
+    String(lastError?.message || '').includes('depleted') ||
+    String(lastError?.message || '').includes('prepayment') ||
+    String(lastError?.message || '').includes('RESOURCE_EXHAUSTED') ||
+    String(lastError?.message || '').includes('quota');
+
+  if (isDepletedOrQuota) {
+    console.warn('[AI Model] Quota or prepayment depleted. Gracefully generating safe assistance response.');
+    return {
+      text: `### Service Notice\n\nThe Google Gemini free-tier rate limit was reached or prepayment credits are depleted for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket replenishes in 30–60 seconds.\n- **Billing**: To enable unlimited high-speed capacity, manage prepayment credits at [AI Studio](https://ai.studio/projects).\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
+      modelUsed: 'gemini-3.8-flash',
+      isQuotaExceeded: true,
+      candidates: [],
+    };
+  }
+
   throw lastError;
 }
 
@@ -314,8 +374,8 @@ Output ONLY the final enhanced prompt text, without conversational fluff.`;
     const enhanced = aiRes?.text?.trim() || prompt;
     res.json({ enhancedPrompt: enhanced });
   } catch (err: any) {
-    console.error('Enhance prompt error:', err);
-    res.status(500).json({ error: (err as Error).message });
+    console.warn('[Enhance Prompt] Fallback triggered:', (err as Error)?.message);
+    res.json({ enhancedPrompt: req.body?.prompt || '' });
   }
 });
 
@@ -586,13 +646,17 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       config.tools = [{ googleSearch: {} }];
     }
 
-    const targetModel = deepThinking ? 'gemini-3.1-pro-preview' : 'gemini-3.8-flash';
-    // Call AI model with automatic exponential backoff retry
-    const response = await generateWithRetry({
-      model: targetModel,
-      contents,
-      config,
-    });
+    const targetModel = 'gemini-3.8-flash';
+    const clientProvidedKey = (req.headers['x-gemini-api-key'] as string) || req.body.customApiKey;
+    // Call AI model with automatic exponential backoff retry and free tier failover
+    const response = await generateWithRetry(
+      {
+        model: targetModel,
+        contents,
+        config,
+      },
+      clientProvidedKey
+    );
 
     const responseText = response.text || '';
 
@@ -712,19 +776,30 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       model: (response as any)?.modelUsed || targetModel,
     });
   } catch (error: any) {
-    console.error('Error in /api/chat:', error);
     const errMsg = error?.message || String(error);
-    const is429 =
+    console.warn('[AI Service] Notice in /api/chat:', errMsg);
+    const isQuotaOrDepleted =
+      error?.status === 402 ||
       error?.status === 429 ||
+      errMsg.includes('402') ||
       errMsg.includes('429') ||
       errMsg.includes('RESOURCE_EXHAUSTED') ||
+      errMsg.includes('prepayment') ||
+      errMsg.includes('depleted') ||
       errMsg.includes('quota');
 
-    if (is429) {
-      return res.status(429).json({
-        error:
-          'You exceeded your current API quota. Please check your API quota or upgrade your billing tier.',
+    if (isQuotaOrDepleted) {
+      // Instead of crashing the client with a 500 error, return a structured assistant fallback
+      return res.json({
+        text: `### Service Notice\n\nThe Google Gemini free-tier rate limit was temporarily reached or prepayment credits are depleted for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket automatically replenishes in 30–60 seconds. Please try your prompt again shortly.\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
+        thinkingProcess: undefined,
+        images: [],
+        sources: [],
+        webSearchQueries: [],
+        vectorMemories: [],
+        codeBlocks: [],
         isQuotaExceeded: true,
+        model: 'gemini-3.8-flash',
       });
     }
 
@@ -805,8 +880,8 @@ Please provide:
       indexedChunksCount,
     });
   } catch (error: any) {
-    console.error('Error in /api/analyze-document:', error);
     const errMsg = error?.message || String(error);
+    console.warn('[Doc Intelligence] Notice in /api/analyze-document:', errMsg);
     const is429 =
       error?.status === 429 ||
       errMsg.includes('429') ||
@@ -838,7 +913,7 @@ app.post('/api/generate-image', async (req: Request, res: Response) => {
       success: true,
     });
   } catch (error: any) {
-    console.error('Error in /api/generate-image:', error);
+    console.warn('[Image Gen] Notice in /api/generate-image:', (error as Error).message);
     res.status(500).json({ error: (error as Error).message });
   }
 });

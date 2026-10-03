@@ -82,12 +82,29 @@
   }
 }
 
+:root {
+  --font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
 body {
+  font-family: var(--font-family);
   background-color: #131314;
   color: #e3e3e3;
   margin: 0;
   padding: 0;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
+}
+
+button, input, textarea, select {
+  font-family: inherit;
+}
+
+code, pre, kbd, .font-mono {
+  font-family: var(--font-mono);
 }
 
 /* Custom subtle scrollbar */

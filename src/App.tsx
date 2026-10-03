@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, cleanTitle } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ChatView } from './components/ChatView';
 import { ChatMessage, Attachment, ChatSession } from './types';
@@ -22,7 +22,12 @@ export default function App() {
       const saved = localStorage.getItem('omniz_sessions');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((s: ChatSession) => ({
+            ...s,
+            title: cleanTitle(s.title || ''),
+          }));
+        }
       }
     } catch (e) {
       console.warn('Failed to load sessions from storage:', e);
@@ -138,8 +143,9 @@ export default function App() {
   };
 
   const handleRenameSession = (id: string, newTitle: string) => {
+    const cleaned = cleanTitle(newTitle);
     setSessions((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, title: newTitle, updatedAt: Date.now() } : s))
+      prev.map((s) => (s.id === id ? { ...s, title: cleaned, updatedAt: Date.now() } : s))
     );
   };
 
@@ -168,11 +174,14 @@ export default function App() {
       attachments,
     };
 
-    // Update session title if first message
+    // Update session title if first message (ensuring no emojis)
     const isFirstMessage = currentSession.messages.length === 0;
+    const cleanPromptText = cleanTitle(text);
     const newTitle = isFirstMessage
-      ? text ? text.slice(0, 35) + (text.length > 35 ? '...' : '') : 'Attachment Query'
-      : currentSession.title;
+      ? cleanPromptText
+        ? cleanPromptText.slice(0, 35) + (cleanPromptText.length > 35 ? '...' : '')
+        : 'Attachment Query'
+      : cleanTitle(currentSession.title);
 
     // Append user message immediately
     const updatedMessages = [...currentSession.messages, userMessage];
@@ -282,7 +291,8 @@ export default function App() {
     // If the current active session is already empty, reuse it
     let targetSessionId = activeSessionId;
     const isCurrentEmpty = currentSession && currentSession.messages.length === 0;
-    const formattedTitle = customTitle || prompt.slice(0, 32) + (prompt.length > 32 ? '...' : '');
+    const baseTitle = cleanTitle(customTitle || prompt);
+    const formattedTitle = baseTitle.slice(0, 35) + (baseTitle.length > 35 ? '...' : '');
 
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}_u`,

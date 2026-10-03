@@ -9,7 +9,7 @@ import {
   PanelLeftClose, 
   MessageSquare,
   GraduationCap,
-  Sparkles,
+  BookOpen,
   Layers,
   ArrowRight,
   ExternalLink,
@@ -68,6 +68,15 @@ interface SidebarProps {
   onRenameSession: (id: string, newTitle: string) => void;
   onSelectPrompt?: (prompt: string, title?: string) => void;
 }
+
+export const cleanTitle = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
@@ -606,8 +615,8 @@ Begin our masterclass on "${topic}" now.`;
                           className="bg-[#131314] border border-[#8ab4f8] rounded-full px-2.5 py-0.5 text-xs text-white focus:outline-none w-full"
                         />
                       ) : (
-                        <span className="truncate block font-normal" title={session.title}>
-                          {session.title}
+                        <span className="truncate block font-normal" title={cleanTitle(session.title)}>
+                          {cleanTitle(session.title)}
                         </span>
                       )}
                     </div>
@@ -869,22 +878,22 @@ Begin our masterclass on "${topic}" now.`;
               </div>
               {[
                 {
-                  title: '🧠 Quantum Physics & Superposition',
+                  title: 'Quantum Physics & Superposition',
                   desc: "Explain quantum superposition and quantum entanglement like I'm a first-year undergraduate with intuitive math.",
                   prompt: "Explain quantum superposition and entanglement step-by-step with intuitive analogies and the foundational mathematical formalism.",
                 },
                 {
-                  title: '💻 High-Performance Algorithm Mastery',
+                  title: 'High-Performance Algorithm Mastery',
                   desc: 'Interactive tutorial on Dynamic Programming and memoization with Python code execution.',
                   prompt: "Walk me through Dynamic Programming from first principles. Give me an interactive problem, explain recurrence relations, and provide Python code.",
                 },
                 {
-                  title: '🏗️ Distributed Systems Architecture',
+                  title: 'Distributed Systems Architecture',
                   desc: 'Deep dive into Raft consensus, CAP theorem, and event-driven microservices.',
                   prompt: "Explain the Raft consensus algorithm step-by-step: leader election, log replication, and safety guarantees with ASCII diagrams.",
                 },
                 {
-                  title: '🧬 Genomics & CRISPR Technology',
+                  title: 'Genomics & CRISPR Technology',
                   desc: 'Molecular biology breakdown of Cas9 gene editing mechanisms and vectors.',
                   prompt: "Explain how CRISPR-Cas9 precision gene editing works at the molecular level, including gRNA recognition and DNA repair pathways.",
                 },
@@ -949,7 +958,7 @@ Begin our masterclass on "${topic}" now.`;
                   prompt: "Act as an academic research scholar. Synthesize recent breakthroughs with verified facts, live citations, and rigorous empirical validation.",
                 },
                 {
-                  icon: Sparkles,
+                  icon: BookOpen,
                   name: 'Creative Storyteller',
                   tag: 'Narrative',
                   color: 'text-rose-400 bg-rose-500/10',
@@ -1044,7 +1053,7 @@ Begin our masterclass on "${topic}" now.`;
                     className="p-2.5 rounded-xl bg-[#282a2c]/40 hover:bg-[#282a2c] border border-transparent hover:border-[#3c4043] flex items-center justify-between cursor-pointer transition-colors"
                   >
                     <div className="truncate text-xs font-medium text-[#e3e3e3] pr-2">
-                      {s.title}
+                      {cleanTitle(s.title)}
                     </div>
                     <div className="text-[10px] text-[#80868b] shrink-0">
                       {s.messages.length} msg

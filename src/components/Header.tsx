@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { DnaRingLogo } from './DnaRingLogo';
 import { UserAccountMenu } from './UserAccountMenu';
+import { FontPicker } from './FontPicker';
 
 interface HeaderProps {
   sidebarOpen: boolean;
@@ -40,8 +41,10 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      {/* Right: Search Grounding Toggle + Clear Chat + Google Account Login */}
+      {/* Right: Font Picker + Search Grounding Toggle + Clear Chat + Google Account Login */}
       <div className="flex items-center gap-2.5">
+        <FontPicker />
+
         <button
           onClick={() => setEnableSearch(!enableSearch)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs transition-colors cursor-pointer border ${

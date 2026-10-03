@@ -14,7 +14,7 @@ import {
   ThumbsDown, 
   Paperclip, 
   X,
-  Sparkles,
+  Cpu,
   Code,
   Compass,
   FileText,
@@ -113,7 +113,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       name: 'Omni Z Ultra',
       shortName: 'Ultra',
       badge: 'Flagship Intelligence',
-      desc: 'Multimodal, live web search, Python runner & memory',
+      desc: 'Multimodal analysis, real-time Google search grounding, and sandboxed Python code execution.',
       dotColor: 'bg-[#8ab4f8]',
       iconColor: 'text-[#8ab4f8]',
       icon: Zap,
@@ -123,7 +123,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       name: 'Omni Z Deep Think',
       shortName: 'Think',
       badge: 'Extended Reasoning',
-      desc: 'Step-by-step chain of thought, proofs & verification',
+      desc: 'Deep analytical chain of thought, mathematical proofs, and step-by-step logic verification.',
       dotColor: 'bg-purple-400',
       iconColor: 'text-purple-400',
       icon: Brain,
@@ -133,7 +133,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       name: 'Code Architect',
       shortName: 'Code',
       badge: 'Production Systems',
-      desc: 'Full-stack architecture, algorithms & benchmarks',
+      desc: 'Full-stack software architecture, algorithmic optimization, debugging, and live execution.',
       dotColor: 'bg-blue-400',
       iconColor: 'text-blue-400',
       icon: Code,
@@ -143,7 +143,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       name: 'Masterclass Tutor',
       shortName: 'Tutor',
       badge: 'Socratic Learning',
-      desc: 'Pedagogical breakdowns, LaTeX math & concept checks',
+      desc: 'Pedagogical breakdowns, LaTeX math equations, and intuitive conceptual explanations.',
       dotColor: 'bg-emerald-400',
       iconColor: 'text-emerald-400',
       icon: GraduationCap,
@@ -713,7 +713,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 {/* Floating Bottom Prompt Caption (Appears on Mouse Hover) */}
                                 <div className="absolute bottom-0 inset-x-0 p-3.5 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 z-10 flex items-center justify-between text-xs text-white pointer-events-none">
                                   <div className="flex items-center gap-2 truncate pr-2">
-                                    <Sparkles className="w-3.5 h-3.5 text-[#8ab4f8] shrink-0" />
+                                    <ImageIcon className="w-3.5 h-3.5 text-[#8ab4f8] shrink-0" />
                                     <span className="truncate italic font-medium drop-shadow-md">
                                       {message.imagePrompt || 'AI Generated Visual'}
                                     </span>
@@ -899,7 +899,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               {/* 6 Rich AI Vision Action Chips */}
               <div>
                 <div className="text-[11px] font-semibold text-[#8ab4f8] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" /> Multimodal Vision Intelligence:
+                  <Eye className="w-3.5 h-3.5" /> Multimodal Vision Intelligence:
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5">
                   {[
@@ -1029,7 +1029,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[11px] font-semibold text-[#80868b] uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[#8ab4f8]" /> 2. Cinematography Presets
+                    <Layers className="w-3.5 h-3.5 text-[#8ab4f8]" /> 2. Cinematography Presets
                   </div>
                   <div className="flex items-center gap-1 bg-[#282a2c] p-0.5 rounded-lg text-[11px]">
                     {(['style', 'lighting', 'camera'] as const).map((cat) => (
@@ -1137,7 +1137,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-medium text-xs shadow-lg transition-all active:scale-95 cursor-pointer"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <Wand2 className="w-3.5 h-3.5" />
                   <span>Generate Artwork ({selectedAspectRatio})</span>
                 </button>
               </div>
@@ -1181,7 +1181,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             {/* Right Action Icons */}
             <div className="flex items-center gap-1.5 shrink-0 ml-1">
-              {/* ✨ AI Prompt Enhancer Button (Appears when text is entered) */}
+              {/* AI Prompt Enhancer Button (Appears when text is entered) */}
               {inputText.trim().length > 3 && (
                 <button
                   type="button"
@@ -1227,46 +1227,82 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </button>
 
                 {modelDropdownOpen && (
-                  <div className="absolute right-0 bottom-full mb-3 w-72 rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-2xl p-1.5 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="px-2.5 py-1 text-[11px] font-semibold text-[#80868b] uppercase tracking-wider flex items-center justify-between">
-                      <span>Model Cognitive Engine</span>
-                      <span className="text-[10px] text-[#8ab4f8] font-mono">Gemini 3.8</span>
+                  <div className="absolute right-0 bottom-full mb-3.5 w-[360px] sm:w-[420px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_12px_40px_rgba(0,0,0,0.65)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    {/* Header */}
+                    <div className="px-3 py-2 border-b border-[#2d2f33] flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Cpu className="w-3.5 h-3.5 text-[#8ab4f8]" />
+                        <span className="text-[11px] font-semibold text-[#c4c7c5] uppercase tracking-wider">
+                          Model Intelligence
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#8ab4f8] font-medium bg-[#8ab4f8]/10 px-2 py-0.5 rounded-full border border-[#8ab4f8]/20">
+                        Google Gemini
+                      </span>
                     </div>
-                    {modelOptions.map((opt) => {
-                      const Icon = opt.icon;
-                      const isSel = opt.id === selectedModel;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => {
-                            if (onSelectModel) onSelectModel(opt.id);
-                            setModelDropdownOpen(false);
-                          }}
-                          className={`w-full text-left p-2.5 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                            isSel
-                              ? 'bg-[#282a2c] text-white font-medium'
-                              : 'text-[#c4c7c5] hover:bg-[#282a2c] hover:text-white'
-                          }`}
-                        >
-                          <div className="flex items-start gap-2.5 min-w-0">
-                            <div className="p-1 rounded-lg bg-[#18191b] shrink-0 mt-0.5">
-                              <Icon className={`w-3.5 h-3.5 ${opt.iconColor}`} />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-xs text-[#e3e3e3]">{opt.name}</span>
-                                <span className="text-[10px] text-[#9aa0a6] px-1.5 py-0.2 rounded-md bg-[#18191b] border border-[#2d2f33] font-mono">
-                                  {opt.badge}
-                                </span>
+
+                    {/* Model Items */}
+                    <div className="py-1.5 space-y-1">
+                      {modelOptions.map((opt) => {
+                        const Icon = opt.icon;
+                        const isSel = opt.id === selectedModel;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              if (onSelectModel) onSelectModel(opt.id);
+                              setModelDropdownOpen(false);
+                            }}
+                            className={`w-full text-left p-3 rounded-xl transition-all cursor-pointer border ${
+                              isSel
+                                ? 'bg-[#282a2c] border-[#8ab4f8]/40 shadow-sm'
+                                : 'bg-transparent border-transparent hover:bg-[#282a2c]/60 hover:border-[#3c4043]'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              {/* Icon container */}
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                                isSel ? 'bg-[#18191b] ring-1 ring-[#8ab4f8]/30' : 'bg-[#18191b]'
+                              }`}>
+                                <Icon className={`w-4 h-4 ${opt.iconColor}`} />
                               </div>
-                              <div className="text-[11px] text-[#80868b] leading-tight line-clamp-1 mt-0.5">{opt.desc}</div>
+
+                              {/* Text content */}
+                              <div className="flex-1 min-w-0 pr-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-[13px] text-white tracking-tight">
+                                    {opt.name}
+                                  </span>
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 whitespace-nowrap ${
+                                    isSel
+                                      ? 'bg-[#8ab4f8]/15 text-[#8ab4f8] border border-[#8ab4f8]/30'
+                                      : 'bg-[#18191b] text-[#9aa0a6] border border-[#2d2f33]'
+                                  }`}>
+                                    {opt.badge}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-[#9aa0a6] leading-relaxed mt-1">
+                                  {opt.desc}
+                                </div>
+                              </div>
+
+                              {/* Active Checkmark */}
+                              {isSel && (
+                                <div className="w-5 h-5 rounded-full bg-[#8ab4f8]/20 border border-[#8ab4f8]/50 flex items-center justify-center text-[#8ab4f8] shrink-0 mt-1">
+                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          {isSel && <Check className="w-4 h-4 text-[#8ab4f8] shrink-0 ml-1.5" />}
-                        </button>
-                      );
-                    })}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="px-3 py-1.5 border-t border-[#2d2f33] text-[11px] text-[#80868b] text-center">
+                      Switch cognitive engines anytime during your conversation.
+                    </div>
                   </div>
                 )}
               </div>
