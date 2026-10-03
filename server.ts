@@ -371,7 +371,8 @@ Output ONLY the final enhanced prompt text, without conversational fluff.`;
       contents: instruction,
     });
 
-    const enhanced = aiRes?.text?.trim() || prompt;
+    const isNotice = aiRes?.isQuotaExceeded || (aiRes?.text && aiRes.text.includes('Service Notice'));
+    const enhanced = isNotice ? prompt : (aiRes?.text?.trim() || prompt);
     res.json({ enhancedPrompt: enhanced });
   } catch (err: any) {
     console.warn('[Enhance Prompt] Fallback triggered:', (err as Error)?.message);
@@ -846,7 +847,12 @@ Please provide:
       contents: prompt,
     });
 
-    const analysisText = response.text || '';
+    let analysisText = response.text || '';
+    if (response.isQuotaExceeded) {
+      const lines = content.split('\n');
+      const words = content.trim().split(/\s+/).length;
+      analysisText = `### Document Summary: ${fileName}\n\n- **Document Type**: \`${fileType}\`\n- **Metrics**: ${lines.length} lines, ${words.toLocaleString()} words, ${content.length.toLocaleString()} characters\n\n#### Content Excerpt:\n\`\`\`\n${content.slice(0, 600)}${content.length > 600 ? '\n... [content continues]' : ''}\n\`\`\`\n\n*Note: High-level metrics generated locally. Full semantic synthesis resumes when Gemini rate limits refresh.*`;
+    }
 
     // If requested, chunk and save to Vector Database
     let indexedChunksCount = 0;
