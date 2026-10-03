@@ -507,41 +507,41 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
         ) : (
           /* Active Chat Thread */
-          <div className="max-w-3xl mx-auto w-full py-6 space-y-6">
+          <div className="max-w-4xl mx-auto w-full py-8 space-y-8 px-2 sm:px-6">
             {messages.map((message) => {
               const isUser = message.role === 'user';
 
               return (
-                <div key={message.id} className="space-y-3">
+                <div key={message.id} className="space-y-4">
                   {/* User Message */}
                   {isUser ? (
                     <div className="flex justify-end">
-                      <div className="max-w-[85%] bg-[#282a2c] text-[#e3e3e3] rounded-3xl px-5 py-3 text-[15px] leading-relaxed shadow-sm">
+                      <div className="max-w-[85%] sm:max-w-[78%] bg-[#242629] border border-[#333538] text-[#f1f3f4] rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm">
                         {message.attachments && message.attachments.length > 0 && (
-                          <div className="mb-2 flex flex-wrap gap-2">
+                          <div className="mb-2.5 flex flex-wrap gap-2">
                             {message.attachments.map((att) => (
                               <div
                                 key={att.id}
-                                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1e1f20] text-xs text-[#c4c7c5]"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1b1d] border border-[#3c4043] text-xs text-[#c4c7c5]"
                               >
-                                <Paperclip className="w-3 h-3 text-[#8ab4f8]" />
-                                <span className="truncate max-w-[150px]">{att.name}</span>
+                                <Paperclip className="w-3.5 h-3.5 text-[#8ab4f8]" />
+                                <span className="truncate max-w-[180px]">{att.name}</span>
                               </div>
                             ))}
                           </div>
                         )}
-                        <div className="whitespace-pre-wrap">{message.content}</div>
+                        <div className="whitespace-pre-wrap font-normal select-text">{message.content}</div>
                       </div>
                     </div>
                   ) : (
                     /* Omni Z Response */
-                    <div className="flex gap-3.5 items-start">
+                    <div className="flex gap-4 items-start">
                       {/* Avatar */}
-                      <div className="w-7 h-7 shrink-0 mt-1">
-                        <DnaRingLogo className="w-7 h-7" />
+                      <div className="w-8 h-8 rounded-full bg-[#1e1f20] border border-[#2d2f33] flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                        <DnaRingLogo className="w-5 h-5" />
                       </div>
 
-                      <div className="flex-1 space-y-3 min-w-0">
+                      <div className="flex-1 space-y-4 min-w-0 pr-1">
                         {/* Deep Reasoning & Chain-of-Thought (Visible when deep thinking is enabled) */}
                         {message.thinkingProcess && (() => {
                           const rawThought = message.thinkingProcess;
@@ -563,9 +563,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           }
 
                           return (
-                            <div className="mb-3.5 rounded-2xl border border-purple-500/30 bg-gradient-to-b from-purple-950/25 to-[#1a1b1d] overflow-hidden text-xs shadow-xl">
+                            <div className="mb-4 rounded-2xl border border-purple-500/30 bg-gradient-to-b from-purple-950/25 to-[#1a1b1d] overflow-hidden text-xs shadow-lg">
                               {/* Header bar */}
-                              <div className="w-full px-3.5 py-2.5 flex items-center justify-between text-purple-300 bg-purple-950/40 border-b border-purple-500/20">
+                              <div className="w-full px-4 py-2.5 flex items-center justify-between text-purple-300 bg-purple-950/40 border-b border-purple-500/20">
                                 <button
                                   onClick={() =>
                                     setExpandedThoughts((prev) => ({
@@ -605,12 +605,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                               {/* Expanded Content with Structured Step Cards */}
                               {expandedThoughts[message.id] && (
-                                <div className="p-3.5 space-y-2 bg-black/40">
+                                <div className="p-4 space-y-2.5 bg-black/40">
                                   {stepSections.length > 0 ? (
                                     stepSections.map((step, idx) => (
                                       <div
                                         key={idx}
-                                        className="rounded-xl border border-purple-500/20 bg-purple-950/20 p-3 space-y-1.5"
+                                        className="rounded-xl border border-purple-500/20 bg-purple-950/20 p-3.5 space-y-1.5"
                                       >
                                         <div className="flex items-center gap-2 font-medium text-purple-200 text-xs">
                                           <span className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-600/30 text-purple-300 text-[10px] font-mono border border-purple-400/30 font-bold">
@@ -635,7 +635,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         })()}
 
                         {/* Markdown Content */}
-                        <div className="text-[15px] text-[#e3e3e3] leading-relaxed">
+                        <div className="text-[15.5px] text-[#e3e3e3] leading-[1.8] font-normal tracking-[0.01em]">
                           <MarkdownRenderer content={message.content} />
                         </div>
 
@@ -729,12 +729,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                         {/* Grounding Web Sources */}
                         {message.sources && message.sources.length > 0 && (
-                          <div className="pt-2">
-                            <div className="text-xs text-[#80868b] font-medium mb-1.5 flex items-center gap-1.5">
+                          <div className="pt-3.5 border-t border-[#2d2f33]/60 space-y-2">
+                            <div className="text-xs text-[#9aa0a6] font-medium flex items-center gap-1.5">
                               <Globe className="w-3.5 h-3.5 text-[#8ab4f8]" />
-                              <span>Live Web Sources</span>
+                              <span>Referenced Live Sources</span>
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-2">
                               {message.sources.map((src, idx) => {
                                 let domain = '';
                                 try {
@@ -749,10 +749,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     href={src.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#1e1f20] hover:bg-[#282a2c] text-[#8ab4f8] text-[11px] border border-[#2d2f33] transition-colors"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1e1f20] hover:bg-[#282a2c] text-[#8ab4f8] hover:text-[#a8c7fa] text-xs border border-[#2d2f33] transition-colors group shadow-2xs"
                                   >
-                                    <ExternalLink className="w-3 h-3" />
-                                    <span className="max-w-[150px] truncate">{src.title || domain}</span>
+                                    <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100" />
+                                    <span className="max-w-[200px] truncate">{src.title || domain}</span>
                                   </a>
                                 );
                               })}
@@ -761,7 +761,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         )}
 
                         {/* Action Toolbar */}
-                        <div className="flex items-center gap-3 text-[#80868b] pt-1">
+                        <div className="flex items-center gap-3 text-[#80868b] pt-3 mt-2 border-t border-[#2d2f33]/40">
                           <button
                             onClick={() => handleCopyMessage(message.id, message.content)}
                             className="p-1.5 rounded-full hover:bg-[#282a2c] hover:text-[#e3e3e3] transition-colors cursor-pointer"
@@ -816,32 +816,34 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             {/* Thinking / Streaming Indicator */}
             {isLoading && (
-              <div className="flex gap-3.5 items-start">
-                <div className="w-7 h-7 shrink-0 mt-1">
+              <div className="flex gap-4 items-start animate-in fade-in duration-200">
+                <div className="w-8 h-8 rounded-full bg-[#1e1f20] border border-[#2d2f33] flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                   {selectedModel === 'omni-z-think' ? (
-                    <Brain className="w-6 h-6 text-purple-400 animate-pulse" />
+                    <Brain className="w-4 h-4 text-purple-400 animate-pulse" />
                   ) : (
-                    <DnaRingLogo className="w-7 h-7" />
+                    <DnaRingLogo className="w-5 h-5 animate-pulse" />
                   )}
                 </div>
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-2 py-1">
                   {selectedModel === 'omni-z-think' ? (
-                    <div className="p-3.5 rounded-2xl border border-purple-500/30 bg-purple-950/20 backdrop-blur-xs space-y-2 max-w-md">
+                    <div className="p-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 backdrop-blur-xs space-y-2.5 max-w-lg">
                       <div className="flex items-center gap-2 text-xs font-semibold text-purple-300">
                         <div className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
-                        <span>Omni Z Extended Reasoning Active...</span>
+                        <span>Omni Z Extended Reasoning Active</span>
                       </div>
-                      <p className="text-[12px] text-[#c4c7c5] leading-relaxed">
-                        Formulating problem decomposition, testing edge cases, and verifying mathematical & logical steps.
+                      <p className="text-[13px] text-[#c4c7c5] leading-relaxed">
+                        Formulating problem decomposition, testing edge cases, and verifying mathematical logic.
                       </p>
-                      <div className="h-1.5 w-full bg-purple-950 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-purple-500 via-indigo-400 to-purple-500 w-1/2 animate-shimmer" />
+                      <div className="h-1 w-full bg-purple-950/60 rounded-full overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-purple-500 via-indigo-400 to-purple-500 w-2/3 animate-pulse" />
                       </div>
                     </div>
                   ) : (
-                    <div className="text-sm text-[#80868b] flex items-center gap-2 py-1">
-                      <div className="w-2 h-2 rounded-full bg-[#8ab4f8] animate-ping" />
-                      <span>{enableSearch ? 'Omni Z is browsing the live web and synthesizing facts...' : 'Omni Z is synthesizing response...'}</span>
+                    <div className="text-[14px] text-[#9aa0a6] flex items-center gap-2.5 py-1">
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#8ab4f8] animate-ping" />
+                      <span className="font-normal">
+                        {enableSearch ? 'Omni Z is browsing the live web and synthesizing facts...' : 'Omni Z is generating response...'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -855,7 +857,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Floating Input Dock at bottom */}
       <div className="p-4 bg-gradient-to-t from-[#131314] via-[#131314]/95 to-transparent relative z-20">
-        <div className="max-w-3xl mx-auto space-y-2">
+        <div className="max-w-4xl mx-auto space-y-2 px-2 sm:px-4">
           {/* Multimodal File Preview & Vision Actions Deck */}
           {attachments.length > 0 && (
             <div className="p-3 rounded-2xl bg-[#1e1f20] border border-[#2d2f33] space-y-2.5 text-xs shadow-xl animate-in fade-in duration-200">
@@ -1306,6 +1308,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Enter / Send Up Arrow Button (Appears immediately when user types or adds attachments) */}
+              {(inputText.trim().length > 0 || attachments.length > 0) && (
+                <button
+                  type="button"
+                  onClick={handleSend}
+                  disabled={isLoading}
+                  className="w-8 h-8 rounded-full bg-white hover:bg-[#e8eaed] active:scale-90 text-[#131314] flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-[#8ab4f8] animate-in zoom-in-75 fade-in"
+                  title="Send message (Enter)"
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="w-4 h-4 stroke-[2.75]" />
+                </button>
+              )}
             </div>
           </div>
 

@@ -3,36 +3,100 @@ import { marked } from 'marked';
 import katex from 'katex';
 import { CodeBlock } from './CodeBlock';
 
+// Configure marked with GFM (GitHub Flavored Markdown)
+marked.setOptions({
+  gfm: true,
+  breaks: false,
+});
+
 interface MarkdownRendererProps {
   content: string;
 }
 
-function renderContentWithMath(rawText: string): string {
-  const mathPlaceholders: string[] = [];
+/**
+ * Normalizes and formats AI output into clean, structured Markdown with distinct
+ * sections, healthy spacing, and clean bulleted definitions.
+ */
+function formatAndCleanMarkdown(rawText: string): string {
+  let text = rawText;
 
-  // 1. Extract block math $$...$$
-  let text = rawText.replace(/\$\$([\s\S]*?)\$\$/g, (_match, math) => {
+  // 1. Clean up weird pseudo-LaTeX escapes like \$15\text{-}\$50 -> $15-$50
+  text = text.replace(/\\\$(\d+(?:\.\d+)?)\\text\{[-–—]\}\\\$(\d+(?:\.\d+)?)/g, '$$$1 - $$$2');
+  text = text.replace(/\\\$(\d+(?:\.\d+)?)/g, '$$$1');
+
+  // 2. Ensure tables have blank lines before and after so they don't stick to surrounding text
+  text = text.replace(/(\n\|[^\n]+\|\n)(?=[^|\n])/g, '$1\n\n');
+  text = text.replace(/([^|\n]\n)(\|[^\n]+\|\n)/g, '$1\n$2');
+
+  // 3. Elevate numbered main sections like "3. Impact on Ecosystem Stakeholders"
+  // into prominent markdown headers (###) with double newlines
+  text = text.replace(/(?:^|\n)([0-9]+\.\s+[A-Z][^\n]{3,65})(?=\n|$)/g, '\n\n### $1\n\n');
+
+  // 4. Elevate sub-category title lines (e.g. "Transaction Authentication & Cryptography", "Application Security & Anti-Bot Infrastructure")
+  // that precede bold terms or bullets into sub-headers (####)
+  text = text.replace(/(?:^|\n)([A-Z][A-Za-z0-9\s&/\-–]{3,60}[A-Za-z0-9])\n+(?=(?:\*|-|\b[0-9]+\.|\*\*[A-Z]|[A-Z][A-Za-z0-9\s\.\(\)\/\-]+:))/g, '\n\n#### $1\n\n');
+
+  // 5. Convert definition lines like "Cardholders: ...", "Merchants: ...", "EMV Chips: ...", "3D Secure 2.0 (3DS2): ..."
+  // or "**Term:** ..." into distinct, beautifully spaced bullet items
+  text = text.replace(/(?:^|\n)(?:[-*]\s*)?(?:\*\*)?([A-Za-z0-9][A-Za-z0-9\s\.\(\)\/\-–]{1,55}):(?:\*\*)?\s*([^\n]+)/g, (match, term, desc) => {
+    // Avoid mangling protocol prefixes like http: or https:
+    if (/^https?$/i.test(term)) return match;
+    return `\n\n* **${term.trim()}:** ${desc.trim()}`;
+  });
+
+  // 6. Normalize multiple consecutive blank lines to standard clean double-newlines
+  text = text.replace(/\n{3,}/g, '\n\n');
+
+  return text;
+}
+
+/**
+ * Protects currency amounts ($15, $50, $15-$50, $100K, etc.) and safely parses
+ * actual LaTeX equations without mangling normal English prose.
+ */
+function renderContentWithMath(rawText: string): string {
+  // First clean and structure the document
+  let text = formatAndCleanMarkdown(rawText);
+
+  const mathPlaceholders: string[] = [];
+  const currencyPlaceholders: string[] = [];
+
+  // 1. Protect currency patterns (e.g. $15, $50, $15-$50, $15 - $50, $10.50, $100k, $2B)
+  const currencyRegex = /\$(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?:\s*(?:k|m|b|t|thousand|million|billion|trillion))?(?:\s*(?:-|–|—|to)\s*\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?(?:\s*(?:k|m|b|t|thousand|million|billion|trillion))?)?/gi;
+  text = text.replace(currencyRegex, (match) => {
+    const placeholder = `@@@CURRENCY_${currencyPlaceholders.length}@@@`;
+    currencyPlaceholders.push(match);
+    return placeholder;
+  });
+
+  // 2. Extract block math $$...$$
+  text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_match, math) => {
     try {
       const rendered = katex.renderToString(math.trim(), {
         displayMode: true,
         throwOnError: false,
       });
       const placeholder = `@@@MATH_BLOCK_${mathPlaceholders.length}@@@`;
-      mathPlaceholders.push(`<div class="my-3 overflow-x-auto py-1 text-center">${rendered}</div>`);
+      mathPlaceholders.push(`<div class="my-5 overflow-x-auto py-3 px-4 bg-[#18191b] rounded-xl border border-[#2d2f33] text-center text-[#e3e3e3] shadow-xs">${rendered}</div>`);
       return placeholder;
     } catch {
       return _match;
     }
   });
 
-  // 2. Extract inline math $...$
-  text = text.replace(/(^|[^\\])\$([^\$\n]+?)\$/g, (match, prefix, math) => {
-    // Avoid currency numbers like $100 or $5.50
-    if (/^\s*\d+(\.\d+)?\s*$/.test(math)) {
+  // 3. Extract inline math: only if it contains legitimate math symbols and NOT plain English sentences
+  const englishWords = /\b(the|and|or|of|to|in|for|with|is|are|was|were|be|been|have|has|had|do|does|did|can|could|should|would|will|shall|may|might|must|per|loss|costs|fees|transaction|bank|merchants|cardholders|merchandise|shipping|gateway|overhead|account|funds|fraudulent|charges|requires|defense|depth|model|flow|chips|stripe|magnetic|transition|reduced|physical|counterfeit|protocol|facilitates|behavioral|evaluate|anomalous|replaces|surrogate|tokens|exfiltrated|useless|infrastructure)\b/i;
+  const mathIndicators = /[\\=_^+\-*/<>{}\[\]\(\)]|\b(alpha|beta|gamma|delta|pi|sigma|theta|omega|lambda|mu|phi|psi|sum|int|frac|sqrt|times|approx|neq|leq|geq|in|to)\b/;
+
+  text = text.replace(/(^|[^\\])\$([^\$\n]{1,120}?)\$/g, (match, prefix, math) => {
+    const trimmed = math.trim();
+    // If it contains plain English words or lacks math symbols, leave it untouched
+    if (englishWords.test(trimmed) || !mathIndicators.test(trimmed)) {
       return match;
     }
+
     try {
-      const rendered = katex.renderToString(math.trim(), {
+      const rendered = katex.renderToString(trimmed, {
         displayMode: false,
         throwOnError: false,
       });
@@ -44,16 +108,22 @@ function renderContentWithMath(rawText: string): string {
     }
   });
 
-  // 3. Parse Markdown
-  let html = marked.parse(text, { async: false, breaks: true }) as string;
+  // 4. Parse Markdown with marked
+  let html = marked.parse(text, { async: false }) as string;
 
-  // 4. Restore rendered math HTML
+  // 5. Restore rendered math HTML
   mathPlaceholders.forEach((mathHtml, idx) => {
     const blockKey = `@@@MATH_BLOCK_${idx}@@@`;
     const inlineKey = `@@@MATH_INLINE_${idx}@@@`;
     html = html.replace(`<p>${blockKey}</p>`, mathHtml);
     html = html.replace(blockKey, mathHtml);
     html = html.replace(inlineKey, mathHtml);
+  });
+
+  // 6. Restore protected currency values
+  currencyPlaceholders.forEach((currVal, idx) => {
+    const currKey = `@@@CURRENCY_${idx}@@@`;
+    html = html.replaceAll(currKey, currVal);
   });
 
   return html;
@@ -90,7 +160,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
   }
 
   return (
-    <div className="space-y-3 leading-relaxed text-[#e3e3e3]">
+    <div className="space-y-4 text-[#e3e3e3]">
       {parts.map((part, index) => {
         if (part.type === 'code') {
           return (
@@ -107,7 +177,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) =
         return (
           <div
             key={index}
-            className="prose prose-invert max-w-none text-[#e3e3e3] prose-p:my-2 prose-p:leading-relaxed prose-headings:text-[#e3e3e3] prose-headings:font-semibold prose-a:text-[#8ab4f8] prose-a:underline hover:prose-a:text-[#a8c7fa] prose-ul:my-2 prose-li:my-0.5 prose-table:border-collapse prose-th:border prose-th:border-[#3c4043] prose-th:p-2 prose-th:bg-[#1e1f20] prose-td:border prose-td:border-[#2d2f33] prose-td:p-2 prose-blockquote:border-l-4 prose-blockquote:border-[#8ab4f8] prose-blockquote:bg-[#1e1f20] prose-blockquote:py-1 prose-blockquote:px-3 prose-blockquote:rounded-r prose-code:text-[#e3e3e3] prose-code:bg-[#282a2c] prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md"
+            className="omniz-content"
             dangerouslySetInnerHTML={{ __html: rawHtml }}
           />
         );

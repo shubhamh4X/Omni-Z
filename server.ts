@@ -566,15 +566,13 @@ print("=" * 56)
       });
     }
 
-    // 1. Vector Memory Retrieval
+    // 1. Vector Memory Retrieval (High-speed local dense matching)
     let relevantMemories: any[] = [];
     let memoryContextString = '';
-    if (enableMemory && message) {
+    if (enableMemory && message && message.trim().length > 3) {
       try {
-        const queryVector = await getGeminiEmbedding(message);
         relevantMemories = await runVectorDb('query', {
           query_text: message,
-          vector: queryVector,
           top_k: 4,
         });
 
@@ -587,7 +585,7 @@ print("=" * 56)
           }
         }
       } catch (memErr) {
-        console.warn('Vector memory query failed:', memErr);
+        console.warn('Vector memory query note:', memErr);
       }
     }
 
@@ -602,10 +600,10 @@ CORE ARCHITECTURAL DIRECTIVES:
 
 2. MATHEMATICAL RIGOR & KATEX TYPESETTING:
    - Your frontend features a native KaTeX mathematical typesetting engine.
-   - For ALL mathematical equations, physics formulas, quantum mechanics, algebra, calculus, and scientific expressions:
+   - For ALL genuine mathematical equations, physics formulas, algebra, calculus, and scientific expressions:
      * Format standalone/display equations using double dollar signs: $$ <equation> $$
      * Format inline mathematical variables and formulas using single dollar signs: $ <variable> $ (e.g. $E = mc^2$, $|\\psi\\rangle = \\alpha|0\\rangle + \\beta|1\\rangle$, $\\mathcal{O}(N \\log N)$).
-   - This ensures your mathematical formulations render into immaculate textbook-grade typography.
+   - CRITICAL RULE FOR CURRENCY & PRICES: NEVER wrap currency amounts (e.g. $15, $50, $15-$50, $100,000) or financial figures in LaTeX math syntax or \\text{} tags. Write currency as standard plain text: $15 - $50. Only use $...$ or $$...$$ for actual mathematical equations.
 
 3. PYTHON EXECUTION SANDBOX:
    - You are connected to a real, live Python 3 execution sandbox on the server.
@@ -632,7 +630,15 @@ CORE ARCHITECTURAL DIRECTIVES:
 
 8. TONE & INTELLECTUAL CALIBER:
    - Masterful, articulate, razor-sharp, intellectually sophisticated, and proactively helpful.
-   - Current Year: 2026.`;
+   - Current Year: 2026.
+
+9. PROFESSIONAL TYPOGRAPHIC PRESENTATION & BREATHING ROOM:
+   - Present information with impeccable structure, visual hierarchy, and breathing room.
+   - Use clear Markdown headings (## and ###) to separate major sections logically.
+   - Use clean, well-spaced bullet points or numbered lists rather than dense walls of unbroken text.
+   - Separate paragraphs with blank lines so complex ideas are scannable and digestible.
+   - Format tabular data in clean Markdown tables with distinct headers.
+   - Avoid congested, impenetrable walls of text; ensure every answer is executive-grade and reader-friendly.`;
 
     // Apply Cognitive Mode Enhancements
     if (cognitiveMode === 'omni-z-code') {

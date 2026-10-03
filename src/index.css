@@ -130,3 +130,162 @@ code, pre, kbd, .font-mono {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* Omni Z High-Readability Document & Markdown Typography */
+.omniz-content {
+  color: #e3e3e3;
+  font-size: 15.5px;
+  line-height: 1.85;
+  letter-spacing: -0.01em;
+}
+
+.omniz-content p {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  line-height: 1.85;
+  color: #e3e3e3;
+}
+
+.omniz-content h1, 
+.omniz-content h2, 
+.omniz-content h3, 
+.omniz-content h4 {
+  color: #f8f9fa;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+}
+
+.omniz-content h1 {
+  font-size: 1.75rem;
+  margin-top: 2.25rem;
+  margin-bottom: 1rem;
+}
+
+.omniz-content h2 {
+  font-size: 1.38rem;
+  margin-top: 2rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #2d2f33;
+}
+
+.omniz-content h3 {
+  font-size: 1.18rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  color: #8ab4f8;
+}
+
+.omniz-content h4 {
+  font-size: 1.05rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.6rem;
+  color: #d1d5db;
+}
+
+.omniz-content ul,
+.omniz-content ol {
+  margin-top: 1rem;
+  margin-bottom: 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.omniz-content ul {
+  list-style-type: disc;
+}
+
+.omniz-content ol {
+  list-style-type: decimal;
+}
+
+.omniz-content li {
+  margin-top: 0.65rem;
+  margin-bottom: 0.65rem;
+  line-height: 1.75;
+  color: #e3e3e3;
+}
+
+.omniz-content strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.omniz-content table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.75rem 0;
+  border: 1px solid #3c4043;
+  border-radius: 0.85rem;
+  overflow: hidden;
+  background: rgba(26, 27, 30, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.omniz-content th {
+  background: #202225;
+  color: #8ab4f8;
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid #3c4043;
+  text-align: left;
+}
+
+.omniz-content td {
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid #2d2f33;
+  color: #e3e3e3;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  background: rgba(22, 23, 26, 0.4);
+}
+
+.omniz-content tr:last-child td {
+  border-bottom: none;
+}
+
+.omniz-content tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.omniz-content blockquote {
+  border-left: 3px solid #8ab4f8;
+  background: rgba(30, 31, 32, 0.5);
+  margin: 1.25rem 0;
+  padding: 0.85rem 1.25rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #c4c7c5;
+  font-style: italic;
+}
+
+.omniz-content code:not(pre code) {
+  background: #282a2c;
+  color: #e3e3e3;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+  font-size: 0.88em;
+  font-family: var(--font-mono);
+  border: 1px solid #3c4043;
+}
+
+.omniz-content hr {
+  border: 0;
+  border-top: 1px solid #2d2f33;
+  margin: 2.25rem 0;
+}
+
+.omniz-content a {
+  color: #8ab4f8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.omniz-content a:hover {
+  color: #a8c7fa;
+}
+
