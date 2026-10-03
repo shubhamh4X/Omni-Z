@@ -66,6 +66,11 @@
     transform-origin: center center;
   }
 
+  .animate-galaxy-whirl {
+    animation: galaxyOpen 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards, galaxySpin 16s 1.2s linear infinite;
+    transform-origin: center center;
+  }
+
   .animate-galaxy-ambient {
     animation: galaxySpin 24s linear infinite;
     transform-origin: center center;

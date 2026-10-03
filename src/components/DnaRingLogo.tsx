@@ -3,12 +3,16 @@ import React, { useMemo } from 'react';
 interface DnaRingLogoProps {
   className?: string;
   animate?: boolean;
+  galaxy?: boolean;
+  openAnimation?: boolean;
   glow?: boolean;
 }
 
 export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
   className = 'w-7 h-7',
   animate = false,
+  galaxy = true,
+  openAnimation = false,
   glow = true,
 }) => {
   // Pre-calculate toroidal DNA ring geometry
@@ -82,9 +86,17 @@ export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
     return { pathA: pA, pathB: pB, rungs: rungLines, nodes: nodeDots };
   }, []);
 
+  const animClass = openAnimation
+    ? 'animate-galaxy-whirl'
+    : galaxy
+    ? 'animate-galaxy-spin'
+    : animate
+    ? 'animate-spin-slow'
+    : '';
+
   return (
     <svg
-      className={`${className} ${animate ? 'animate-spin-slow' : ''} shrink-0 select-none overflow-visible`}
+      className={`${className} ${animClass} shrink-0 select-none overflow-visible`}
       viewBox="0 0 120 120"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
