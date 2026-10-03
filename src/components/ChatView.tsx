@@ -381,6 +381,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -1146,8 +1147,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )}
 
-          {/* Pill Bar */}
-          <div className="relative flex items-center bg-[#1e1f20] hover:bg-[#222427] focus-within:bg-[#222427] border border-[#2d2f33] focus-within:border-[#3c4043] rounded-full px-3 py-2 shadow-2xl transition-all">
+          {/* Pill Bar Form */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            className="relative flex items-center bg-[#1e1f20] hover:bg-[#222427] focus-within:bg-[#222427] border border-[#2d2f33] focus-within:border-[#3c4043] rounded-full px-3 py-2 shadow-2xl transition-all"
+          >
             {/* Plus / Attach button */}
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -1312,8 +1319,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               {/* Enter / Send Up Arrow Button (Appears immediately when user types or adds attachments) */}
               {(inputText.trim().length > 0 || attachments.length > 0) && (
                 <button
-                  type="button"
-                  onClick={handleSend}
+                  type="submit"
                   disabled={isLoading}
                   className="w-8 h-8 rounded-full bg-white hover:bg-[#e8eaed] active:scale-90 text-[#131314] flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-[#8ab4f8] animate-in zoom-in-75 fade-in"
                   title="Send message (Enter)"
@@ -1323,7 +1329,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </button>
               )}
             </div>
-          </div>
+          </form>
 
           <div className="text-[11px] text-[#80868b] text-center pt-0.5">
             Omni Z can make mistakes. Verify important facts with live sources.

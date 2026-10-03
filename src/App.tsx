@@ -151,8 +151,21 @@ export default function App() {
     syncToFirestore();
   }, [sessions, user]);
 
-  // Current session
-  const currentSession = sessions.find((s) => s.id === activeSessionId) || sessions[0];
+  // Current session with guaranteed fallback
+  const currentSession = sessions.find((s) => s.id === activeSessionId) || sessions[0] || {
+    id: INITIAL_SESSION_ID,
+    title: 'New conversation',
+    messages: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+
+  // Sync activeSessionId if currentSession changed
+  useEffect(() => {
+    if (currentSession && activeSessionId !== currentSession.id) {
+      setActiveSessionId(currentSession.id);
+    }
+  }, [currentSession, activeSessionId]);
 
   const handleNewChat = () => {
     // If current session is already an empty new conversation, remain on it
@@ -223,6 +236,10 @@ export default function App() {
   ) => {
     if (!text && attachments.length === 0) return;
 
+    // Resolve target session safely
+    const targetSessionId = currentSession?.id || activeSessionId || INITIAL_SESSION_ID;
+    const currentMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
+
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}_u`,
       role: 'user',
@@ -231,21 +248,34 @@ export default function App() {
       attachments,
     };
 
-    // Update session title if first message (ensuring no emojis)
-    const isFirstMessage = currentSession.messages.length === 0;
+    // Update session title if first message
+    const isFirstMessage = currentMessages.length === 0;
     const cleanPromptText = cleanTitle(text);
     const newTitle = isFirstMessage
       ? cleanPromptText
         ? cleanPromptText.slice(0, 35) + (cleanPromptText.length > 35 ? '...' : '')
         : 'Attachment Query'
-      : cleanTitle(currentSession.title);
+      : cleanTitle(currentSession?.title || 'Conversation');
 
     // Append user message immediately
-    const updatedMessages = [...currentSession.messages, userMessage];
+    const updatedMessages = [...currentMessages, userMessage];
 
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === activeSessionId
+    setSessions((prev) => {
+      const exists = prev.some((s) => s.id === targetSessionId);
+      if (!exists) {
+        return [
+          {
+            id: targetSessionId,
+            title: newTitle,
+            messages: updatedMessages,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+          ...prev,
+        ];
+      }
+      return prev.map((s) =>
+        s.id === targetSessionId
           ? {
               ...s,
               title: newTitle,
@@ -253,8 +283,12 @@ export default function App() {
               updatedAt: Date.now(),
             }
           : s
-      )
-    );
+      );
+    });
+
+    if (activeSessionId !== targetSessionId) {
+      setActiveSessionId(targetSessionId);
+    }
 
     setIsLoading(true);
 
@@ -310,10 +344,10 @@ export default function App() {
 
       setSessions((prev) =>
         prev.map((s) =>
-          s.id === activeSessionId
+          s.id === targetSessionId
             ? {
                 ...s,
-                messages: [...updatedMessages, assistantMessage],
+                messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), assistantMessage],
                 updatedAt: Date.now(),
               }
             : s
@@ -330,10 +364,10 @@ export default function App() {
 
       setSessions((prev) =>
         prev.map((s) =>
-          s.id === activeSessionId
+          s.id === targetSessionId
             ? {
                 ...s,
-                messages: [...updatedMessages, errorMessage],
+                messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), errorMessage],
                 updatedAt: Date.now(),
               }
             : s

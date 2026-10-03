@@ -37,7 +37,7 @@ function getAiClient(customKey?: string): GoogleGenAI {
 
 // Helper to run Python Vector DB CLI
 function runVectorDb(cmd: string, payload?: any): Promise<any> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const pythonScript = path.join(__dirname, 'server', 'vector_db.py');
     const args = [pythonScript, cmd];
     if (payload !== undefined) {
@@ -46,7 +46,15 @@ function runVectorDb(cmd: string, payload?: any): Promise<any> {
 
     execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
-        return reject(new Error(stderr || err.message));
+        // Graceful fallback if python3 is not available in host environment (e.g. Railway minimal node image)
+        console.warn(`[Vector DB Note] python3 execution notice: ${err.message}. Using fallback.`);
+        if (cmd === 'stats') {
+          return resolve({ total_entries: 0, categories: {}, available: false });
+        }
+        if (cmd === 'query') {
+          return resolve([]);
+        }
+        return resolve({ success: true, available: false });
       }
       try {
         const data = JSON.parse(stdout.trim());
