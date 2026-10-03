@@ -1,8 +1,11 @@
-# OmniGemini — Real-Time Dynamic AI Agent
+# Omni Z — Real-Time Dynamic AI Agent
 
 <div align="center">
 
-![OmniGemini Banner](https://img.shields.io/badge/OmniGemini-Real--Time%20AI%20Agent-38bdf8?style=for-the-badge&logo=google&logoColor=white)
+<img src="./public/omni-z-banner.svg" alt="Omni Z Preview Banner" width="100%" />
+
+<br/><br/>
+
 [![React](https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-8.x-646cff?style=flat-square&logo=vite)](https://vitejs.dev)
@@ -18,22 +21,20 @@
 
 ## 🌟 Overview
 
-**OmniGemini** is a full-stack, next-generation AI assistant built on the Google Gemini ecosystem. Designed with a clean, high-performance interface inspired by Google Gemini, OmniGemini gives users an expansive canvas for conversing, coding, researching, and creating.
-
-The agent features real-time search grounding, interactive sandbox code execution, multi-turn conversational history saved to Firebase Cloud Firestore, KaTeX mathematical typesetting, audio input transcription, and rich media processing.
+**Omni Z** is a full-stack, next-generation AI assistant powered by Google's Gemini models. Featuring a clean, ultra-responsive dark interface, Omni Z provides a unified environment for multi-turn dialogue, real-time live search grounding, sandboxed Python code execution, mathematical LaTeX rendering, and multimodal analysis.
 
 ---
 
 ## ✨ Key Features
 
-- **🌀 Galaxy Orbital Omni Logo**: Custom SVG toroidal double-helix logo featuring cosmic galaxy-style circular rotation and entrance swirl animations.
-- **⚡ Multimodal Intelligence**: Powered by Google's Gemini models via `@google/genai` SDK for high-speed streaming, natural dialogue, and complex reasoning.
-- **🔍 Real-Time Google Search Grounding**: Up-to-the-minute web information with interactive search queries and authoritative citation links.
-- **🐍 Python Code Sandbox**: Live in-chat execution of Python code snippets with formatted stdout/stderr terminal output.
-- **☁️ Persistent Cloud Firestore Storage**: Real-time sync of conversations, message histories, and user sessions across devices.
-- **📐 Mathematical & Code Rendering**: Full support for KaTeX LaTeX equations, fenced syntax-highlighted code blocks, and markdown formatting.
-- **🎙️ Voice & Multimodal Inputs**: Audio input support, drag-and-drop file attachments, image analysis, and PDF comprehension.
-- **🎨 Modern Dark Mode UI**: Clean, distraction-free aesthetic with collapsible sidebar, pin/rename/delete chat controls, and responsive layouts for mobile and desktop.
+- **🌀 Galaxy Orbital Omni Z Logo**: Toroidal double-helix logo with smooth circular galaxy rotation and dynamic opening swirl animations.
+- **⚡ Multimodal Intelligence**: Powered by Google Gemini models via `@google/genai` TypeScript SDK for fast streaming and complex problem-solving.
+- **🔍 Real-Time Google Search Grounding**: Live web information with interactive search queries and inline source citations.
+- **🐍 Python Code Execution**: In-chat sandboxed Python execution displaying stdout, stderr, and return evaluations.
+- **☁️ Persistent Cloud Firestore Storage**: Real-time multi-session chat histories stored securely in Firebase Firestore.
+- **📐 Mathematical & Code Rendering**: KaTeX LaTeX equation rendering, fenced syntax highlighting, and rich Markdown.
+- **🎙️ Voice & Multimodal File Inputs**: Audio speech input, document parsing (PDFs, text files), and image comprehension.
+- **🎨 Minimalist Dark UI**: Distraction-free Gemini dark aesthetics, collapsible drawer sidebar, and smooth transitions.
 
 ---
 
@@ -61,8 +62,8 @@ The agent features real-time search grounding, interactive sandbox code executio
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/omnigemini.git
-   cd omnigemini
+   git clone https://github.com/your-username/omni-z.git
+   cd omni-z
    ```
 
 2. **Install dependencies:**
@@ -95,6 +96,8 @@ The agent features real-time search grounding, interactive sandbox code executio
 ## 📁 Project Structure
 
 ```
+├── public/
+│   └── omni-z-banner.svg        # High-resolution vector preview banner
 ├── server.ts                    # Full-stack Express server integrating Vite dev middleware
 ├── server/                      # Server-side controllers, API routes, and agent executors
 │   └── routes/                  # Express API proxy endpoints
@@ -137,7 +140,7 @@ Database interactions with Cloud Firestore are protected using role-based and us
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/your-username/omnigemini/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/your-username/omni-z/issues).
 
 ---
 
