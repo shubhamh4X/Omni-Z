@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Omni Z App Preview](omni-z-preview.svg)
+![Omni Z App Preview](Omni-z-a.png)
 
 <br/>
 
