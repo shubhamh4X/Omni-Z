@@ -219,7 +219,7 @@ function isExplicitImageRequest(message: string): boolean {
   return explicitImagePatterns.some((pattern) => pattern.test(text));
 }
 
-// Resilient generateContent with exponential backoff for quota / rate limits
+// Resilient generateContent with exponential backoff for quota / rate limits / high-demand spikes
 async function generateWithRetry(params: any, customClientKey?: string, maxRetries = 2): Promise<any> {
   let lastError: any = null;
   const client = customClientKey
@@ -229,7 +229,7 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
       })
     : getAiClient();
 
-  // Use free-tier models: gemini-3.8-flash and gemini-3.1-flash-lite. Never call paid-only models that yield 402.
+  // Use free-tier models. Never call paid-only models that yield 402.
   const requestedModel = params.model;
   const safeModel = (requestedModel && !requestedModel.includes('pro') && !requestedModel.includes('image'))
     ? requestedModel
@@ -239,11 +239,12 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
     safeModel,
     'gemini-3.8-flash',
     'gemini-3.1-flash-lite',
+    'gemini-2.0-flash',
   ]));
 
   for (let modelIdx = 0; modelIdx < candidateModels.length; modelIdx++) {
     const currentModel = candidateModels[modelIdx];
-    const currentParams = { ...params, model: currentModel };
+    let currentParams = { ...params, model: currentModel };
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -255,74 +256,97 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
       } catch (err: any) {
         lastError = err;
         const errMsg = err?.message || String(err);
+        const status = err?.status || err?.code;
+
         const isDepleted =
-          err?.status === 402 ||
+          status === 402 ||
           errMsg.includes('402') ||
           errMsg.includes('depleted') ||
           errMsg.includes('prepayment');
 
         if (isDepleted) {
           console.warn(`[AI Model] Model ${currentModel} returned 402 (prepayment credits depleted). Skipping to next free tier candidate...`);
-          break; // Move to next free candidate model immediately
+          break; // Move to next candidate model immediately
         }
+
         const isNotFound =
-          err?.status === 404 ||
+          status === 404 ||
           errMsg.includes('404') ||
           errMsg.includes('NOT_FOUND') ||
           errMsg.includes('no longer available');
 
-        const isTransient =
-          err?.status === 429 ||
-          err?.status === 503 ||
+        if (isNotFound) {
+          console.warn(`[AI Model] Model ${currentModel} returned 404/NOT_FOUND. Trying next fallback model...`);
+          break;
+        }
+
+        const isTransientOrOverloaded =
+          status === 429 ||
+          status === 503 ||
           errMsg.includes('429') ||
           errMsg.includes('503') ||
           errMsg.includes('RESOURCE_EXHAUSTED') ||
           errMsg.includes('quota') ||
           errMsg.includes('UNAVAILABLE') ||
-          errMsg.includes('high demand');
+          errMsg.includes('high demand') ||
+          errMsg.includes('overloaded');
 
-        if (isNotFound) {
-          console.warn(`[AI Model] Model ${currentModel} returned 404/NOT_FOUND. Trying next fallback model...`);
-          break; // Move immediately to next model without retrying 404
-        }
+        if (isTransientOrOverloaded) {
+          // If Google Search grounding is attached, strip it immediately to bypass the Search grounding capacity bottleneck
+          if (currentParams.config?.tools && currentParams.config.tools.length > 0) {
+            console.warn(`[AI Model] Capacity limit hit on ${currentModel} with search tools. Retrying immediately with core model without tools...`);
+            currentParams = {
+              ...currentParams,
+              config: {
+                ...currentParams.config,
+                tools: undefined,
+              },
+            };
+            continue;
+          }
 
-        if (isTransient) {
           if (attempt < maxRetries) {
-            const delayMs = (attempt + 1) * 1500;
-            console.warn(`[AI Model] Transient status on ${currentModel} (attempt ${attempt + 1}/${maxRetries}). Retrying in ${delayMs}ms...`);
+            const delayMs = (attempt + 1) * 1200;
+            console.warn(`[AI Model] Transient/High demand on ${currentModel} (attempt ${attempt + 1}/${maxRetries}). Retrying in ${delayMs}ms...`);
             await new Promise((r) => setTimeout(r, delayMs));
-
-            if (attempt === maxRetries - 1 && currentParams.config?.tools) {
-              currentParams.config = { ...currentParams.config };
-              delete currentParams.config.tools;
-            }
             continue;
           } else if (modelIdx < candidateModels.length - 1) {
-            console.warn(`[AI Model] ${currentModel} unavailable after ${maxRetries} retries. Falling back to ${candidateModels[modelIdx + 1]}...`);
+            console.warn(`[AI Model] ${currentModel} saturated. Falling back to next candidate ${candidateModels[modelIdx + 1]}...`);
             break; // Try next fallback model
           }
         }
-        throw err;
+
+        // If not transient or last model exhausted, break inner loop to evaluate fallback
+        break;
       }
     }
   }
 
-  const isDepletedOrQuota =
+  const isDepletedOrQuotaOrHighDemand =
     lastError?.status === 402 ||
     lastError?.status === 429 ||
+    lastError?.status === 503 ||
     String(lastError?.message || '').includes('402') ||
     String(lastError?.message || '').includes('429') ||
+    String(lastError?.message || '').includes('503') ||
     String(lastError?.message || '').includes('depleted') ||
     String(lastError?.message || '').includes('prepayment') ||
     String(lastError?.message || '').includes('RESOURCE_EXHAUSTED') ||
-    String(lastError?.message || '').includes('quota');
+    String(lastError?.message || '').includes('quota') ||
+    String(lastError?.message || '').includes('UNAVAILABLE') ||
+    String(lastError?.message || '').includes('high demand') ||
+    String(lastError?.message || '').includes('overloaded');
 
-  if (isDepletedOrQuota) {
-    console.warn('[AI Model] Quota or prepayment depleted. Gracefully generating safe assistance response.');
+  if (isDepletedOrQuotaOrHighDemand) {
+    const isHighDemand = String(lastError?.message || '').includes('high demand') || lastError?.status === 503;
+    console.warn('[AI Model] Quota, prepayment, or temporary high-demand spike. Gracefully generating safe assistance response.');
     return {
-      text: `### Service Notice\n\nThe Google Gemini free-tier rate limit was reached or prepayment credits are depleted for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket replenishes in 30–60 seconds.\n- **Billing**: To enable unlimited high-speed capacity, manage prepayment credits at [AI Studio](https://ai.studio/projects).\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
-      modelUsed: 'gemini-3.8-flash',
+      text: isHighDemand
+        ? `### Service Notice: Model High Demand Spike\n\nGoogle's AI model servers are currently experiencing an unusually high spike in traffic.\n\n- **Status**: The AI compute cluster is momentarily saturated.\n- **Quick Recovery**: Please tap **Retry Request** below in 5–10 seconds to regenerate your response.\n- **Tip**: You can toggle **Search: Off** at the top right to bypass third-party grounding queues.`
+        : `### Service Notice\n\nThe Google Gemini free-tier rate limit was reached or prepayment credits are depleted for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket replenishes in 30–60 seconds.\n- **Billing**: To enable unlimited high-speed capacity, manage prepayment credits at [AI Studio](https://ai.studio/projects).\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
+      modelUsed: 'gemini-3.1-flash-lite',
       isQuotaExceeded: true,
+      isHighDemand: true,
       candidates: [],
     };
   }

@@ -38,11 +38,100 @@ import {
   Square,
   Zap,
   ChevronDown,
-  GraduationCap
+  GraduationCap,
+  MoreHorizontal,
+  ChevronRight,
+  Music2,
+  Terminal,
+  Sigma,
+  Database,
+  Search,
+  HardDrive,
+  FolderPlus,
+  FileUp,
+  Sparkles
 } from 'lucide-react';
 import { ChatMessage, Attachment } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { DnaRingLogo } from './DnaRingLogo';
+
+// Pixel-perfect SVG icons matching Google Gemini design
+const GoogleDriveOutlineIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="8.5 2 15.5 2 21.5 12.5 18 18.5 6 18.5 2.5 12.5" />
+    <line x1="8.5" y1="2" x2="18" y2="18.5" />
+    <line x1="15.5" y1="2" x2="6" y2="18.5" />
+  </svg>
+);
+
+const GooglePhotosIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 12V4a4 4 0 0 1 4 4v4h-4z" />
+    <path d="M12 12h8a4 4 0 0 1-4 4h-4v-4z" />
+    <path d="M12 12v8a4 4 0 0 1-4-4v-4h4z" />
+    <path d="M12 12H4a4 4 0 0 1 4-4h4v4z" />
+  </svg>
+);
+
+const AvatarSmileIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="9" cy="10" r="1.2" fill="currentColor" />
+    <circle cx="15" cy="10" r="1.2" fill="currentColor" />
+    <path d="M8 14.5c1.2 1.5 2.8 2 4 2s2.8-.5 4-2" />
+  </svg>
+);
+
+const CodeBracketsIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polyline points="16 18 22 12 16 6" />
+    <polyline points="8 6 2 12 8 18" />
+  </svg>
+);
+
+const NotebookOutlineIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="5" y="3" width="14" height="18" rx="2" />
+    <line x1="9" y1="3" x2="9" y2="21" />
+    <line x1="12" y1="8" x2="16" y2="8" />
+    <line x1="12" y1="12" x2="16" y2="12" />
+  </svg>
+);
+
+const FrameImageIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="3" y="3" width="18" height="18" rx="4" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="M21 15l-5-5L5 21" />
+  </svg>
+);
+
+const VideoClapperIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="2" y="4" width="20" height="16" rx="3" />
+    <path d="M6 4l2 4" />
+    <path d="M11 4l2 4" />
+    <path d="M16 4l2 4" />
+    <line x1="2" y1="8" x2="22" y2="8" />
+  </svg>
+);
+
+const CanvasSquareIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect x="3" y="3" width="18" height="18" rx="3" />
+    <line x1="12" y1="8" x2="12" y2="16" />
+    <line x1="8" y1="12" x2="16" y2="12" />
+  </svg>
+);
+
+const DeepResearchAtomIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="2.5" />
+    <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(30 12 12)" />
+    <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(-30 12 12)" />
+    <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(90 12 12)" />
+  </svg>
+);
 
 interface ChatViewProps {
   messages: ChatMessage[];
@@ -106,6 +195,60 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [isEnhancingPrompt, setIsEnhancingPrompt] = useState(false);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const modelDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [activeSubmenu, setActiveSubmenu] = useState<'uploads' | 'tools' | null>(null);
+  const [showDriveModal, setShowDriveModal] = useState(false);
+  const [driveSearchQuery, setDriveSearchQuery] = useState('');
+  const [driveTab, setDriveTab] = useState<'recent' | 'my-drive' | 'shared'>('recent');
+
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+  const codeFileInputRef = useRef<HTMLInputElement>(null);
+  const photoFileInputRef = useRef<HTMLInputElement>(null);
+  const notebookFileInputRef = useRef<HTMLInputElement>(null);
+
+  const sampleDriveFiles = [
+    {
+      id: 'gdoc_1',
+      name: 'Omni Z Product Architecture & System Blueprint.gdoc',
+      type: 'application/vnd.google-apps.document',
+      size: 245000,
+      updatedAt: 'Today, 2:15 PM',
+      snippet: 'Complete technical specification covering vector DB, multi-model cascade, and Python execution sandbox.',
+    },
+    {
+      id: 'gsheet_1',
+      name: 'Financial Projections & API Unit Economics 2026.gsheet',
+      type: 'application/vnd.google-apps.spreadsheet',
+      size: 512000,
+      updatedAt: 'Yesterday',
+      snippet: 'Quarterly breakdown of token usage, compute tiers, margin analysis, and enterprise revenue forecasts.',
+    },
+    {
+      id: 'gdoc_2',
+      name: 'Autonomous Agent Research & Grounding Benchmark.gdoc',
+      type: 'application/vnd.google-apps.document',
+      size: 180000,
+      updatedAt: '3 days ago',
+      snippet: 'Empirical evaluation of tool-augmented LLM reasoning, chain of thought verification, and factual latency.',
+    },
+    {
+      id: 'gdoc_3',
+      name: 'Executive Launch Strategy & Go-To-Market Plan.gdoc',
+      type: 'application/vnd.google-apps.document',
+      size: 320000,
+      updatedAt: 'May 12, 2026',
+      snippet: 'Strategic launch phases, developer community onboarding, social campaigns, and benchmark publications.',
+    },
+    {
+      id: 'gsheet_2',
+      name: 'Distributed Systems Latency & Reliability Matrix.gsheet',
+      type: 'application/vnd.google-apps.spreadsheet',
+      size: 410000,
+      updatedAt: 'Apr 28, 2026',
+      snippet: 'P99 response latency benchmarks across model tiers, vector retrieval embeddings, and sandboxed runtimes.',
+    },
+  ];
 
   const modelOptions = [
     {
@@ -178,6 +321,35 @@ export const ChatView: React.FC<ChatViewProps> = ({
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [modelDropdownOpen]);
+
+  // Close Attach dropdown when clicking elsewhere
+  useEffect(() => {
+    if (!attachMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(event.target as Node)) {
+        setAttachMenuOpen(false);
+        setActiveSubmenu(null);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setAttachMenuOpen(false);
+        setActiveSubmenu(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [attachMenuOpen]);
 
   const handleCopyThought = (msgId: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -332,9 +504,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  const insertTextAtCursor = (textToInsert: string) => {
+    if (!textToInsert) return;
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart ?? inputText.length;
+      const end = textarea.selectionEnd ?? inputText.length;
+      const newText = inputText.slice(0, start) + textToInsert + inputText.slice(end);
+      setInputText(newText);
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = start + textToInsert.length;
+        textarea.setSelectionRange(newPos, newPos);
+      }, 10);
+    } else {
+      setInputText((prev) => (prev ? `${prev} ${textToInsert}` : textToInsert));
+    }
+  };
+
+  const insertPromptTemplate = (template: string) => {
+    setInputText((prev) => {
+      if (!prev.trim()) return template;
+      return `${template} ${prev}`;
+    });
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const len = textareaRef.current.value.length;
+        textareaRef.current.setSelectionRange(len, len);
+      }
+    }, 10);
+  };
+
+  const processFileList = (files: FileList | File[]) => {
     Array.from(files).forEach((file) => {
       const reader = new FileReader();
       if (file.type.startsWith('image/')) {
@@ -342,7 +544,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           setAttachments((prev) => [
             ...prev,
             {
-              id: `${Date.now()}_${Math.random()}`,
+              id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
               name: file.name,
               type: file.type,
               size: file.size,
@@ -356,7 +558,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           setAttachments((prev) => [
             ...prev,
             {
-              id: `${Date.now()}_${Math.random()}`,
+              id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
               name: file.name,
               type: file.type || 'text/plain',
               size: file.size,
@@ -367,7 +569,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
         reader.readAsText(file);
       }
     });
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processFileList(e.target.files);
+    }
+    e.target.value = '';
   };
 
   const handleSend = async () => {
@@ -395,45 +603,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
       className="flex-1 flex flex-col h-[calc(100vh-56px)] relative overflow-hidden bg-[#131314]"
       onDragOver={(e) => {
         e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
         setDragOver(true);
       }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
         e.preventDefault();
         setDragOver(false);
+
+        // 1. Text drag and drop (mouse selected text dropped anywhere)
+        const droppedText = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
+        if (droppedText && (!e.dataTransfer.files || e.dataTransfer.files.length === 0)) {
+          insertTextAtCursor(droppedText);
+          return;
+        }
+
+        // 2. File drag and drop
         if (e.dataTransfer.files?.length) {
-          Array.from(e.dataTransfer.files).forEach((file) => {
-            const reader = new FileReader();
-            if (file.type.startsWith('image/')) {
-              reader.onload = (ev) => {
-                setAttachments((prev) => [
-                  ...prev,
-                  {
-                    id: `${Date.now()}_${Math.random()}`,
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    dataUrl: ev.target?.result as string,
-                  },
-                ]);
-              };
-              reader.readAsDataURL(file);
-            } else {
-              reader.onload = (ev) => {
-                setAttachments((prev) => [
-                  ...prev,
-                  {
-                    id: `${Date.now()}_${Math.random()}`,
-                    name: file.name,
-                    type: file.type || 'text/plain',
-                    size: file.size,
-                    textContent: ev.target?.result as string,
-                  },
-                ]);
-              };
-              reader.readAsText(file);
-            }
-          });
+          processFileList(e.dataTransfer.files);
         }
       }}
     >
@@ -445,12 +632,36 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }}
       />
 
-      {/* Hidden File Input */}
+      {/* Hidden File Inputs */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
         multiple
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={codeFileInputRef}
+        onChange={handleFileChange}
+        multiple
+        accept=".py,.ts,.tsx,.js,.jsx,.json,.sql,.cpp,.c,.h,.rs,.go,.sh,.html,.css,.yaml,.yml"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={photoFileInputRef}
+        onChange={handleFileChange}
+        multiple
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={notebookFileInputRef}
+        onChange={handleFileChange}
+        multiple
+        accept=".ipynb,.md,.txt,.json"
         className="hidden"
       />
 
@@ -786,6 +997,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
                               <Volume2 className="w-4 h-4" />
                             )}
                           </button>
+
+                          {/* Retry button for transient error / service notices */}
+                          {(message.content.includes('I encountered an issue') || message.content.includes('Service Notice')) && (
+                            <button
+                              onClick={() => {
+                                const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+                                if (lastUserMsg) {
+                                  onSendMessage(lastUserMsg.content, lastUserMsg.attachments || [], { imageAspectRatio: selectedAspectRatio });
+                                }
+                              }}
+                              disabled={isLoading}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1e1f20] hover:bg-[#282a2c] text-[#8ab4f8] hover:text-[#a8c7fa] border border-[#3c4043] text-xs font-medium cursor-pointer transition-colors shadow-2xs active:scale-95"
+                              title="Retry request"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                              <span>Retry Request</span>
+                            </button>
+                          )}
 
                           <div className="flex items-center gap-1 ml-auto">
                             <button
@@ -1153,16 +1382,344 @@ export const ChatView: React.FC<ChatViewProps> = ({
               e.preventDefault();
               handleSend();
             }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }}
+            onDrop={(e) => {
+              const text = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
+              if (text && (!e.dataTransfer.files || e.dataTransfer.files.length === 0)) {
+                e.preventDefault();
+                e.stopPropagation();
+                insertTextAtCursor(text);
+                return;
+              }
+              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                e.preventDefault();
+                e.stopPropagation();
+                processFileList(e.dataTransfer.files);
+                return;
+              }
+            }}
             className="relative flex items-center bg-[#1e1f20] hover:bg-[#222427] focus-within:bg-[#222427] border border-[#2d2f33] focus-within:border-[#3c4043] rounded-full px-3 py-2 shadow-2xl transition-all"
           >
-            {/* Plus / Attach button */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="p-2 rounded-full hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white transition-colors cursor-pointer mr-0.5 shrink-0"
-              title="Attach files (images, documents, code, data)"
-            >
-              <Plus className="w-5 h-5 text-[#c4c7c5]" />
-            </button>
+            {/* Gemini-Style Plus / Attach Menu Component */}
+            <div className="relative" ref={attachMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachMenuOpen(!attachMenuOpen);
+                  setActiveSubmenu(null);
+                }}
+                className={`p-2 rounded-full transition-all duration-200 cursor-pointer mr-0.5 shrink-0 ${
+                  attachMenuOpen
+                    ? 'bg-[#2d2f33] text-white rotate-45'
+                    : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
+                }`}
+                title="Add to prompt / attach files & tools"
+                aria-expanded={attachMenuOpen}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+
+              {/* Gemini-Style Attachment Menu Popup (matches user reference image) */}
+              {attachMenuOpen && (
+                <div className="absolute left-0 bottom-full mb-3.5 z-50 flex items-start animate-in fade-in zoom-in-95 duration-150">
+                  {/* Left Main Card */}
+                  <div className="w-[230px] sm:w-[245px] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_16px_48px_rgba(0,0,0,0.85)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md">
+                    {/* Header: [X] Close and Title "Ask Omni Z" */}
+                    <div className="flex items-center gap-2.5 px-3.5 py-1.5 mb-1 text-[#e3e3e3] font-medium border-b border-[#2d2f33]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="p-1 rounded-full hover:bg-[#282a2c] text-[#9aa0a6] hover:text-white transition-colors cursor-pointer"
+                        title="Close"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      <span className="text-[14px] font-medium tracking-tight">Ask Omni Z</span>
+                    </div>
+
+                    {/* 1. Upload files */}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setActiveSubmenu(null)}
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                        setAttachMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
+                    >
+                      <Paperclip className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0 stroke-[1.8]" />
+                      <span>Upload files</span>
+                    </button>
+
+                    {/* 2. Add from Drive */}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setActiveSubmenu(null)}
+                      onClick={() => {
+                        setShowDriveModal(true);
+                        setAttachMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
+                    >
+                      <GoogleDriveOutlineIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
+                      <span>Add from Drive</span>
+                    </button>
+
+                    {/* 3. More uploads > */}
+                    <div
+                      className="relative"
+                      onMouseEnter={() => setActiveSubmenu('uploads')}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActiveSubmenu((prev) => (prev === 'uploads' ? null : 'uploads'))}
+                        className={`w-full flex items-center justify-between px-3.5 py-2 hover:bg-[#282a2c] text-left transition-all duration-200 cursor-pointer group ${
+                          activeSubmenu === 'uploads' ? 'bg-[#282a2c] text-white shadow-xs' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <MoreHorizontal className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
+                          <span>More uploads</span>
+                        </div>
+                        <ChevronRight 
+                          className={`w-4 h-4 transition-all duration-300 ease-out shrink-0 ${
+                            activeSubmenu === 'uploads' 
+                              ? 'translate-x-1.5 text-[#8ab4f8] scale-110' 
+                              : 'text-[#9aa0a6] group-hover:translate-x-1.5 group-hover:text-white'
+                          }`} 
+                        />
+                      </button>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="my-1.5 border-t border-[#2d2f33]" />
+
+                    {/* 4. Create image */}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setActiveSubmenu(null)}
+                      onClick={() => {
+                        setShowImageStudio(true);
+                        setAttachMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
+                    >
+                      <FrameImageIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
+                      <span>Create image</span>
+                    </button>
+
+                    {/* 5. Create video */}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setActiveSubmenu(null)}
+                      onClick={() => {
+                        insertPromptTemplate('Create a cinematic video storyboard, scene-by-scene script, and camera motion directions for: ');
+                        setAttachMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
+                    >
+                      <VideoClapperIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
+                      <span>Create video</span>
+                    </button>
+
+                    {/* 6. Create music */}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setActiveSubmenu(null)}
+                      onClick={() => {
+                        insertPromptTemplate('Compose an original music track structure, chord progressions, tempo, instrumentation, and lyric sheet for: ');
+                        setAttachMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
+                    >
+                      <Music2 className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0 stroke-[1.8]" />
+                      <span>Create music</span>
+                    </button>
+
+                    {/* 7. Canvas */}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setActiveSubmenu(null)}
+                      onClick={() => {
+                        insertPromptTemplate('Create an interactive modular workspace and code architecture canvas for: ');
+                        setAttachMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
+                    >
+                      <CanvasSquareIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
+                      <span>Canvas</span>
+                    </button>
+
+                    {/* 8. Deep Research */}
+                    <button
+                      type="button"
+                      onMouseEnter={() => setActiveSubmenu(null)}
+                      onClick={() => {
+                        insertPromptTemplate('Conduct an exhaustive Deep Research investigation with multi-source verified findings on: ');
+                        setAttachMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
+                    >
+                      <DeepResearchAtomIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
+                      <span>Deep Research</span>
+                    </button>
+
+                    {/* 9. More tools > */}
+                    <div
+                      className="relative"
+                      onMouseEnter={() => setActiveSubmenu('tools')}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActiveSubmenu((prev) => (prev === 'tools' ? null : 'tools'))}
+                        className={`w-full flex items-center justify-between px-3.5 py-2 hover:bg-[#282a2c] text-left transition-all duration-200 cursor-pointer group ${
+                          activeSubmenu === 'tools' ? 'bg-[#282a2c] text-white shadow-xs' : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <MoreHorizontal className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
+                          <span>More tools</span>
+                        </div>
+                        <ChevronRight 
+                          className={`w-4 h-4 transition-all duration-300 ease-out shrink-0 ${
+                            activeSubmenu === 'tools' 
+                              ? 'translate-x-1.5 text-[#8ab4f8] scale-110' 
+                              : 'text-[#9aa0a6] group-hover:translate-x-1.5 group-hover:text-white'
+                          }`} 
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Submenu 1: More uploads flyout with sleek fluid animation */}
+                  {activeSubmenu === 'uploads' && (
+                    <div
+                      onMouseEnter={() => setActiveSubmenu('uploads')}
+                      className="ml-2.5 w-[200px] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_20px_50px_rgba(0,0,0,0.9)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md animate-in fade-in-0 zoom-in-95 slide-in-from-left-3 duration-200 ease-out origin-left"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          photoFileInputRef.current?.click();
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-[#282a2c] hover:translate-x-1 text-left transition-all duration-150 cursor-pointer group"
+                      >
+                        <GooglePhotosIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Google Photos</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowImageStudio(true);
+                          insertPromptTemplate('Generate a photorealistic 3D character avatar with expressive facial details and lighting for: ');
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-[#282a2c] hover:translate-x-1 text-left transition-all duration-150 cursor-pointer group"
+                      >
+                        <AvatarSmileIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Avatar</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          codeFileInputRef.current?.click();
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-[#282a2c] hover:translate-x-1 text-left transition-all duration-150 cursor-pointer group"
+                      >
+                        <CodeBracketsIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Import code</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          notebookFileInputRef.current?.click();
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-[#282a2c] hover:translate-x-1 text-left transition-all duration-150 cursor-pointer group"
+                      >
+                        <NotebookOutlineIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Notebooks</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Submenu 2: More tools flyout with sleek fluid animation */}
+                  {activeSubmenu === 'tools' && (
+                    <div
+                      onMouseEnter={() => setActiveSubmenu('tools')}
+                      className="ml-2.5 w-[220px] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_20px_50px_rgba(0,0,0,0.9)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md animate-in fade-in-0 zoom-in-95 slide-in-from-left-3 duration-200 ease-out origin-left"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          insertPromptTemplate('Write and execute a self-contained Python script in the sandbox to: ');
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-[#282a2c] hover:translate-x-1 text-left transition-all duration-150 cursor-pointer group"
+                      >
+                        <Terminal className="w-4 h-4 text-emerald-400 shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Python Sandbox</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          insertPromptTemplate('Derive the formal mathematical proof and KaTeX formulas for: ');
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-[#282a2c] hover:translate-x-1 text-left transition-all duration-150 cursor-pointer group"
+                      >
+                        <Sigma className="w-4 h-4 text-purple-400 shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Equation Solver</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          insertPromptTemplate('Search the live web for verified 2026 data regarding: ');
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-[#282a2c] hover:translate-x-1 text-left transition-all duration-150 cursor-pointer group"
+                      >
+                        <Globe className="w-4 h-4 text-[#8ab4f8] shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Live Web Search</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          insertPromptTemplate('Retrieve relevant cross-session vector memories regarding: ');
+                          setAttachMenuOpen(false);
+                          setActiveSubmenu(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3.5 py-2 hover:bg-[#282a2c] hover:translate-x-1 text-left transition-all duration-150 cursor-pointer group"
+                      >
+                        <Database className="w-4 h-4 text-amber-400 shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Vector Memory</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* AI Image Studio Toggle button */}
             <button
@@ -1177,13 +1734,32 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <ImageIcon className="w-4 h-4" />
             </button>
 
-            {/* Auto-expanding Input Field with 'Ask Omni Z' placeholder */}
+            {/* Auto-expanding Input Field with 'Ask Omni Z' placeholder and Drag-and-Drop Text Support */}
             <textarea
               ref={textareaRef}
               rows={1}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+              }}
+              onDrop={(e) => {
+                const text = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
+                if (text && (!e.dataTransfer.files || e.dataTransfer.files.length === 0)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  insertTextAtCursor(text);
+                  return;
+                }
+                if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  processFileList(e.dataTransfer.files);
+                  return;
+                }
+              }}
               placeholder="Ask Omni Z"
               className="flex-1 bg-transparent text-[#e3e3e3] placeholder-[#80868b] text-[15px] focus:outline-none resize-none py-1.5 px-2 max-h-40 leading-relaxed font-sans"
             />
@@ -1386,6 +1962,137 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 "{previewModalImage.prompt}"
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Google Drive Import Modal */}
+      {showDriveModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setShowDriveModal(false)}
+        >
+          <div 
+            className="w-full max-w-xl rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_24px_64px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2d2f33]">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-[#282a2c] flex items-center justify-center border border-[#3c4043]">
+                  <GoogleDriveOutlineIcon className="w-5 h-5 text-[#8ab4f8]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-medium text-[#f1f3f4]">Google Drive</h3>
+                  <p className="text-xs text-[#9aa0a6]">Select documents or sheets to attach to your prompt</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDriveModal(false)}
+                className="p-1.5 rounded-full hover:bg-[#282a2c] text-[#9aa0a6] hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search and Tabs */}
+            <div className="px-5 pt-3 pb-2 border-b border-[#2d2f33] space-y-2.5">
+              <div className="relative flex items-center bg-[#131314] rounded-xl px-3 py-2 border border-[#2d2f33]">
+                <Search className="w-4 h-4 text-[#80868b] mr-2 shrink-0" />
+                <input
+                  type="text"
+                  value={driveSearchQuery}
+                  onChange={(e) => setDriveSearchQuery(e.target.value)}
+                  placeholder="Search in Drive..."
+                  className="bg-transparent text-sm text-[#e3e3e3] placeholder-[#80868b] focus:outline-none flex-1"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                {(['recent', 'my-drive', 'shared'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setDriveTab(tab)}
+                    className={`px-3 py-1.5 rounded-lg capitalize transition-colors cursor-pointer ${
+                      driveTab === tab
+                        ? 'bg-[#282a2c] text-[#8ab4f8] font-medium border border-[#3c4043]'
+                        : 'text-[#9aa0a6] hover:text-[#e3e3e3] hover:bg-[#282a2c]/60'
+                    }`}
+                  >
+                    {tab.replace('-', ' ')}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                    setShowDriveModal(false);
+                  }}
+                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#8ab4f8]/10 hover:bg-[#8ab4f8]/20 text-[#8ab4f8] transition-colors cursor-pointer font-medium"
+                >
+                  <FileUp className="w-3.5 h-3.5" />
+                  <span>Upload Local File</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Drive Files List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[220px]">
+              {sampleDriveFiles
+                .filter((f) => f.name.toLowerCase().includes(driveSearchQuery.toLowerCase()))
+                .map((file) => (
+                  <div
+                    key={file.id}
+                    onClick={() => {
+                      setAttachments((prev) => [
+                        ...prev,
+                        {
+                          id: `drive_${Date.now()}_${file.id}`,
+                          name: file.name,
+                          type: file.type,
+                          size: file.size,
+                          textContent: `[GOOGLE DRIVE ATTACHMENT: ${file.name}]\nSnippet: ${file.snippet}\nType: Google Workspace Document\nModified: ${file.updatedAt}\n[END OF ATTACHMENT]`,
+                        },
+                      ]);
+                      setShowDriveModal(false);
+                      textareaRef.current?.focus();
+                    }}
+                    className="flex items-center justify-between p-3 rounded-xl hover:bg-[#282a2c] border border-transparent hover:border-[#3c4043] transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 pr-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#18191b] border border-[#2d2f33] flex items-center justify-center shrink-0">
+                        {file.name.includes('.gsheet') ? (
+                          <Table className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <FileText className="w-4 h-4 text-[#8ab4f8]" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-[#e3e3e3] truncate group-hover:text-white">
+                          {file.name}
+                        </p>
+                        <p className="text-xs text-[#9aa0a6] truncate">{file.snippet}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-[#80868b] shrink-0">{file.updatedAt}</span>
+                  </div>
+                ))}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3 border-t border-[#2d2f33] bg-[#18191b] flex items-center justify-between text-xs text-[#9aa0a6]">
+              <span>Connected via Google Drive</span>
+              <button
+                type="button"
+                onClick={() => setShowDriveModal(false)}
+                className="px-4 py-1.5 rounded-lg bg-[#282a2c] hover:bg-[#333538] text-white transition-colors cursor-pointer font-medium"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
