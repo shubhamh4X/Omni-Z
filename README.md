@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Omni Z Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop)
+![Omni Z App Preview](omni-z-preview.svg)
 
 <br/>
 
@@ -96,8 +96,7 @@
 ## 📁 Project Structure
 
 ```
-├── public/
-│   └── omni-z-banner.svg        # Vector preview banner asset
+├── omni-z-preview.svg           # High-resolution vector preview banner of Omni Z
 ├── server.ts                    # Full-stack Express server integrating Vite dev middleware
 ├── server/                      # Server-side controllers, API routes, and agent executors
 │   └── routes/                  # Express API proxy endpoints
