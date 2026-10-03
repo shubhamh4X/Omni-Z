@@ -37,8 +37,17 @@ export const db = firebaseConfig.firestoreDatabaseId
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
   : getFirestore(app);
 
+// Concurrency guard to prevent duplicate concurrent popup requests
+let isSignInInProgress = false;
+
 // Google Sign-In via Popup
 export const signInWithGoogle = async (): Promise<User | null> => {
+  // Prevent duplicate concurrent requests that trigger auth/cancelled-popup-request
+  if (isSignInInProgress) {
+    return null;
+  }
+
+  isSignInInProgress = true;
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
@@ -59,12 +68,25 @@ export const signInWithGoogle = async (): Promise<User | null> => {
     }
     return user;
   } catch (error: any) {
-    console.error('Google Sign-In Error:', error);
-    // If popup was closed by user or cancelled, don't throw critical error
-    if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+    // Normal user actions (closing popup, clicking away, or duplicate click debounce) are not errors
+    const isCancelledByUser = 
+      error?.code === 'auth/popup-closed-by-user' || 
+      error?.code === 'auth/cancelled-popup-request' ||
+      error?.code === 'auth/user-cancelled';
+
+    if (isCancelledByUser) {
       return null;
     }
+
+    if (error?.code === 'auth/popup-blocked') {
+      console.warn('Sign-in popup was blocked by the browser. Please allow popups for this site.');
+      throw new Error('Sign-in popup was blocked by your browser. Please allow popups to sign in.');
+    }
+
+    console.warn('Google Sign-In notice:', error?.message || error);
     throw error;
+  } finally {
+    isSignInInProgress = false;
   }
 };
 
