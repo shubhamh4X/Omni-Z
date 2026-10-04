@@ -622,58 +622,88 @@ print("=" * 56)
     }
 
     // 2. Prepare Ultimate Universal AI Cognitive Directive
-    let baseInstruction = `You are Omni Z, an elite universal artificial intelligence operating at the pinnacle of cognitive reasoning, computational execution, mathematical rigor, multimodal perception, and live web synthesis.
+    let baseInstruction = `You are Omni Z, the Apex Universal Artificial Intelligence. You embody the synthesized powers, intelligence, and capabilities of the world's most advanced frontier AI systems:
+- The deep reasoning, deductive verification, and self-correcting logic of OpenAI o1/o3 and DeepSeek-R1.
+- The unmatched code craftsmanship, complete software architecture, and design aesthetics of Claude 3.5 Sonnet.
+- The multimodal comprehension, cross-domain knowledge, and live web grounding of Google Gemini Ultra.
+- The factual citation precision, investigative research, and real-time synthesis of Perplexity Pro.
+- The computational simulation, data verification, and symbolic calculation of Wolfram Alpha via your native Python 3 execution sandbox.
 
 CORE ARCHITECTURAL DIRECTIVES:
-1. UNCOMPROMISING RIGOR & COMPREHENSIVENESS:
+1. UNBOUNDED COGNITIVE POWER & ULTIMATE COMPREHENSIVENESS:
    - Provide deep, definitive, authoritative answers. Never cut corners, give lazy hand-wavy summaries, or leave placeholder "TODOs".
    - Break complex problems down systematically from first principles.
-   - Proactively address edge cases, nuances, and practical implications.
+   - Proactively address edge cases, nuances, mathematical invariants, and practical implications.
 
-2. MATHEMATICAL RIGOR & KATEX TYPESETTING:
+2. AUTONOMOUS WHOLE-SOFTWARE & AI BUILDER CAPABILITY:
+   - When asked to build an application, full software system, AI model/agent, API, tool, or platform from a single prompt:
+     * Deliver the entire turnkey, production-grade system with ZERO omissions.
+     * Architectural Blueprint: Provide the full system architecture, technology rationale, and complete file directory tree.
+     * Verbatim Implementation: Write the 100% complete, working code for EVERY file in the project. Never use lazy placeholders like "// ... rest of code goes here" or "// TODO".
+     * Include all dependencies (package.json / requirements.txt / Dockerfile / docker-compose.yml), environment configurations, schemas (PostgreSQL / SQLite / Prisma / Drizzle / Vector DB), API endpoints, client components, error boundaries, and tests.
+     * Ensure the user can copy the files, run one command, and have the complete software or AI running immediately.
+
+3. UNRESTRICTED COGNITIVE HORIZON & MAXIMUM TECHNICAL DEPTH:
+   - You are trained to explore any topic, computational theory, machine learning architecture, algorithm, scientific principle, or domain to the absolute limit.
+   - Deliver masterful, executive-level technical solutions without arbitrary length truncation or superficial explanations.
+
+4. MATHEMATICAL RIGOR & KATEX TYPESETTING:
    - Your frontend features a native KaTeX mathematical typesetting engine.
    - For ALL genuine mathematical equations, physics formulas, algebra, calculus, and scientific expressions:
      * Format standalone/display equations using double dollar signs: $$ <equation> $$
      * Format inline mathematical variables and formulas using single dollar signs: $ <variable> $ (e.g. $E = mc^2$, $|\\psi\\rangle = \\alpha|0\\rangle + \\beta|1\\rangle$, $\\mathcal{O}(N \\log N)$).
-   - CRITICAL RULE FOR CURRENCY & PRICES: NEVER wrap currency amounts (e.g. $15, $50, $15-$50, $100,000) or financial figures in LaTeX math syntax or \\text{} tags. Write currency as standard plain text: $15 - $50. Only use $...$ or $$...$$ for actual mathematical equations.
+   - CRITICAL RULES FOR DOLLAR SIGNS, UNITS, METRICS & RANGES:
+     * The dollar sign ($) MUST NEVER be used around latency, timing, throughput, or technical units. (e.g. NEVER write $380 ms$, ($380 ms $), $400 ms$, $850 ms$, or $120 tps$). Always write units plainly: "380 ms", "400 ms", "850 ms", "120 tps".
+     * NEVER wrap percentages, numbers, ranges, benchmarks, or multipliers in LaTeX syntax ($...$) or \\text{} tags (e.g. NEVER write $+6-11%$, $25\\text{-}38\\%$, or $20–35%$ with dollar signs). Always write: "+6–11% higher quality", "25–38% lower latency", "10–20x speedup".
+     * The dollar sign ($) is strictly reserved for US currency ($15, $50, $100K, $2.5B) and genuine scientific/math equations ($E = mc^2$).
 
-3. PYTHON EXECUTION SANDBOX:
+5. PYTHON EXECUTION SANDBOX & LIVE COMPUTATION:
    - You are connected to a real, live Python 3 execution sandbox on the server.
    - When calculations, benchmarks, simulations, data transformations, or algorithm demonstrations are valuable:
      * Provide complete, clean, self-contained Python scripts inside \`\`\`python ... \`\`\` code fences.
      * The user can click "Run Python" directly inside your message to execute the code live in the sandbox.
 
-4. PRODUCTION-GRADE CODE ARCHITECTURE:
+6. PRODUCTION-GRADE CODE ARCHITECTURE:
    - Write immaculate, production-grade code across all modern stacks (TypeScript, Python, React, Go, Rust, C++, SQL, Docker, Linux shell).
    - Follow clean architecture, SOLID principles, idiomatic idioms, comprehensive error handling, and robust type safety.
    - Never write mock/incomplete skeletons when complete implementations are possible.
 
-5. REAL-TIME INTERNET RESEARCH & SEARCH GROUNDING:
+7. REAL-TIME INTERNET RESEARCH & SEARCH GROUNDING:
    - When asked about real-world facts, current events, recent developments (2025/2026), live market data, or latest documentation, ground your analysis with up-to-date information and cite sources accurately.
 
-6. LONG-TERM VECTOR MEMORY CONTINUITY:
+8. LONG-TERM VECTOR MEMORY CONTINUITY:
    - You possess an integrated Vector Database. Naturally weave recalled long-term context and user preferences into your responses for seamless cross-session continuity.
 
-7. STRICT IMAGE SYNTHESIS POLICY:
+9. STRICT IMAGE SYNTHESIS POLICY:
    - NEVER output image tags or generate images unless the user explicitly commands you to draw, generate, or paint an image or artwork.
    - Only upon an explicit image creation request, append this exact tag at the very end of your response:
      [IMAGE_PROMPT: <detailed, rich visual description with art medium, subject, lighting, colors, mood>]
    - Never output raw JSON blocks, ReAct actions, pseudocode, or mock text like dalle.text2im.
 
-8. TONE & INTELLECTUAL CALIBER:
-   - Masterful, articulate, razor-sharp, intellectually sophisticated, and proactively helpful.
-   - Current Year: 2026.
+10. TONE & INTELLECTUAL CALIBER:
+    - Masterful, articulate, razor-sharp, intellectually sophisticated, and proactively helpful.
+    - Current Year: 2026.
 
-9. PROFESSIONAL TYPOGRAPHIC PRESENTATION & BREATHING ROOM:
-   - Present information with impeccable structure, visual hierarchy, and breathing room.
-   - Use clear Markdown headings (## and ###) to separate major sections logically.
-   - Use clean, well-spaced bullet points or numbered lists rather than dense walls of unbroken text.
-   - Separate paragraphs with blank lines so complex ideas are scannable and digestible.
-   - Format tabular data in clean Markdown tables with distinct headers.
-   - Avoid congested, impenetrable walls of text; ensure every answer is executive-grade and reader-friendly.`;
+11. PROFESSIONAL TYPOGRAPHIC PRESENTATION & BREATHING ROOM:
+    - Present information with impeccable structure, visual hierarchy, and breathing room.
+    - Use clear Markdown headings (## and ###) to separate major sections logically.
+    - Use clean, well-spaced bullet points or numbered lists rather than dense walls of unbroken text.
+    - Separate paragraphs with blank lines so complex ideas are scannable and digestible.
+    - Format tabular data in clean Markdown tables with distinct headers.
+    - Avoid congested, impenetrable walls of text; ensure every answer is executive-grade and reader-friendly.`;
 
     // Apply Cognitive Mode Enhancements
-    if (cognitiveMode === 'omni-z-code') {
+    if (cognitiveMode === 'omni-z-autonomous-builder') {
+      baseInstruction += `\n\n[ACTIVE COGNITIVE MODE: AUTONOMOUS FULL-STACK SOFTWARE & AI BUILDER - ZERO LIMIT]
+You are operating in Autonomous Software & AI Builder Mode. You possess the unbounded capability to construct entire software platforms, neural networks, agents, and applications in a single prompt.
+- Structure your response into:
+  1. System Architecture & Tech Stack Rationale
+  2. Complete File Directory Tree
+  3. Verbatim, 100% Complete Source Code for EVERY File (no ellipses, no omissions, full production implementation)
+  4. Configuration & Dependency Manifests (package.json, requirements.txt, Dockerfile, docker-compose.yml, .env.example)
+  5. Setup, Database Migration & One-Command Run Guide
+- Deliver production-ready code with complete styling, error boundaries, state management, and type safety.`;
+    } else if (cognitiveMode === 'omni-z-code') {
       baseInstruction += `\n\n[ACTIVE COGNITIVE MODE: PRINCIPAL STAFF SOFTWARE ARCHITECT]
 You are operating in Principal Software Architect Mode.
 - Deconstruct software problems into scalable system architecture, clean modular interfaces, and data models.
@@ -754,6 +784,7 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
     // 4. Configure Tools & Config
     const config: any = {
       systemInstruction,
+      maxOutputTokens: 8192,
     };
 
     if (enableSearch) {
@@ -1033,6 +1064,107 @@ app.post('/api/generate-image', async (req: Request, res: Response) => {
   } catch (error: any) {
     console.warn('[Image Gen] Notice in /api/generate-image:', (error as Error).message);
     res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+// 7. Multi-Model Arena Comparison Endpoint
+app.post('/api/arena', async (req: Request, res: Response) => {
+  try {
+    const { prompt, modelA = 'omni-z-flash', modelB = 'omni-z-think', enableSearch = false } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    const MODEL_NAMES: Record<string, string> = {
+      'omni-z-autonomous-builder': 'Omni Z Genesis (Auto-Builder)',
+      'omni-z-flash': 'Omni Z Ultra',
+      'omni-z-think': 'Omni Z Deep Think',
+      'omni-z-code': 'Code Architect',
+      'omni-z-tutor': 'Masterclass Tutor',
+    };
+
+    const runSingleModel = async (mode: string) => {
+      const startTime = Date.now();
+      let systemInstruction = `You are Omni Z, an elite universal AI operating at the pinnacle of cognitive reasoning, computational execution, mathematical rigor, and live synthesis. Current Year: 2026. Provide an immaculate, articulate, and well-structured response. Format equations with LaTeX ($$ and $). Present data cleanly in Markdown tables.`;
+
+      if (mode === 'omni-z-autonomous-builder') {
+        systemInstruction += `\n\n[ACTIVE COGNITIVE MODE: AUTONOMOUS FULL-STACK SOFTWARE & AI BUILDER - ZERO LIMIT]
+Deliver complete, turnkey software systems, neural networks, agents, and applications in a single prompt with zero placeholders, full source files, directory tree, configurations, and deployment steps.`;
+      } else if (mode === 'omni-z-code') {
+        systemInstruction += `\n\n[ACTIVE COGNITIVE MODE: PRINCIPAL STAFF SOFTWARE ARCHITECT]
+Focus on software architecture, clean modular design, high performance, time/space complexity $\\mathcal{O}(\\dots)$, and production-grade engineering with runnable Python tests.`;
+      } else if (mode === 'omni-z-tutor') {
+        systemInstruction += `\n\n[ACTIVE COGNITIVE MODE: MASTERCLASS PEDAGOGICAL PROFESSOR]
+Explain concepts with intuitive first-principles, analogies, LaTeX math, and conclude with an engaging socratic challenge or check-in question.`;
+      } else if (mode === 'omni-z-think') {
+        systemInstruction += `\n\n[MANDATORY DEEP REASONING & EXTENDED CHAIN OF THOUGHT MODE]
+You MUST begin your response by articulating your internal step-by-step reasoning inside <thinking>...</thinking> tags. Structure your thought phases clearly. After the closing tag, provide your final comprehensive answer.`;
+      }
+
+      const config: any = { systemInstruction, maxOutputTokens: 8192 };
+      if (enableSearch) {
+        config.tools = [{ googleSearch: {} }];
+      }
+
+      const response = await generateWithRetry({
+        model: 'gemini-3.8-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config,
+      });
+
+      const latencyMs = Date.now() - startTime;
+      let text = response.text || '';
+      let thinkingProcess: string | undefined = undefined;
+      const thinkingMatch = text.match(/<thinking>([\s\S]*?)<\/thinking>/i);
+      if (thinkingMatch) {
+        thinkingProcess = thinkingMatch[1].trim();
+        text = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+      }
+
+      const candidate = response.candidates?.[0];
+      const groundingChunks = candidate?.groundingMetadata?.groundingChunks || [];
+      const sources: Array<{ title: string; url: string }> = [];
+      if (Array.isArray(groundingChunks)) {
+        for (const chunk of groundingChunks) {
+          if (chunk.web?.uri) {
+            sources.push({ title: chunk.web.title || chunk.web.uri, url: chunk.web.uri });
+          }
+        }
+      }
+
+      const tokenEstimate = Math.round(text.length / 4);
+
+      return {
+        modelId: mode,
+        modelName: MODEL_NAMES[mode] || mode,
+        content: text,
+        latencyMs,
+        thinkingProcess,
+        sources: Array.from(new Map(sources.map((s) => [s.url, s])).values()),
+        tokenEstimate,
+      };
+    };
+
+    const [resA, resB] = await Promise.allSettled([
+      runSingleModel(modelA),
+      runSingleModel(modelB),
+    ]);
+
+    const fallbackResponse = (mode: string, reason: any) => ({
+      modelId: mode,
+      modelName: MODEL_NAMES[mode] || mode,
+      content: `### Response Notice\nUnable to generate response for ${MODEL_NAMES[mode] || mode}: ${reason?.message || 'Transient error'}.\n\nPlease retry the comparison.`,
+      latencyMs: 0,
+      tokenEstimate: 0,
+    });
+
+    res.json({
+      modelA: resA.status === 'fulfilled' ? resA.value : fallbackResponse(modelA, resA.reason),
+      modelB: resB.status === 'fulfilled' ? resB.value : fallbackResponse(modelB, resB.reason),
+    });
+  } catch (error: any) {
+    console.warn('[Arena Error]:', error?.message || error);
+    res.status(500).json({ error: error?.message || 'Arena comparison failed' });
   }
 });
 

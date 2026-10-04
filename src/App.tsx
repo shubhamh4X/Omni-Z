@@ -2,31 +2,57 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar, cleanTitle } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ChatView } from './components/ChatView';
+import { ArenaView } from './components/ArenaView';
 import { ChatMessage, Attachment, ChatSession } from './types';
 import { useAuth } from './context/AuthContext';
 import { db } from './firebase';
-import { doc, setDoc, getDocs, collection, query, orderBy, limit } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, getDocs, collection, query, orderBy, limit } from 'firebase/firestore';
 
 const INITIAL_SESSION_ID = 'session_default';
+
+// Helper to track permanently deleted session IDs (tombstones) so refreshes and merges never resurrect them
+const getDeletedSessionIds = (): Set<string> => {
+  try {
+    const saved = localStorage.getItem('omniz_deleted_sessions');
+    if (saved) {
+      const arr = JSON.parse(saved);
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch {}
+  return new Set();
+};
+
+const addDeletedSessionId = (id: string) => {
+  try {
+    const set = getDeletedSessionIds();
+    set.add(id);
+    localStorage.setItem('omniz_deleted_sessions', JSON.stringify(Array.from(set).slice(-150)));
+  } catch {}
+};
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedModel, setSelectedModel] = useState<string>('omni-z-flash');
   const [enableSearch, setEnableSearch] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [currentView, setCurrentView] = useState<'chat' | 'arena'>('chat');
   const { user } = useAuth();
 
   // Multi-session chat management
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     try {
+      const deletedIds = getDeletedSessionIds();
       const saved = localStorage.getItem('omniz_sessions');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((s: ChatSession) => ({
-            ...s,
-            title: cleanTitle(s.title || ''),
-          }));
+          const filtered = parsed
+            .filter((s: ChatSession) => !deletedIds.has(s.id))
+            .map((s: ChatSession) => ({
+              ...s,
+              title: cleanTitle(s.title || ''),
+            }));
+          if (filtered.length > 0) return filtered;
         }
       }
     } catch (e) {
@@ -78,14 +104,23 @@ export default function App() {
           query(
             collection(db, 'users', user.uid, 'sessions'),
             orderBy('updatedAt', 'desc'),
-            limit(20)
+            limit(30)
           )
         );
         if (!isMounted || querySnapshot.empty) return;
 
+        const deletedIds = getDeletedSessionIds();
         const loadedSessions: ChatSession[] = [];
         querySnapshot.forEach((docSnap) => {
           const data = docSnap.data();
+          const docId = data.id || docSnap.id;
+
+          // Prune stale tombstone from Firestore immediately
+          if (deletedIds.has(docId)) {
+            deleteDoc(doc(db, 'users', user.uid, 'sessions', docId)).catch(() => {});
+            return;
+          }
+
           let parsedMessages: ChatMessage[] = [];
           if (data.messages) {
             try {
@@ -93,7 +128,7 @@ export default function App() {
             } catch {}
           }
           loadedSessions.push({
-            id: data.id || docSnap.id,
+            id: docId,
             title: cleanTitle(data.title || 'Conversation'),
             messages: parsedMessages,
             createdAt: data.createdAt || Date.now(),
@@ -103,13 +138,28 @@ export default function App() {
 
         if (loadedSessions.length > 0 && isMounted) {
           setSessions((prev) => {
-            const merged = [...loadedSessions];
+            const currentDeleted = getDeletedSessionIds();
+            const merged = [...loadedSessions.filter((s) => !currentDeleted.has(s.id))];
             for (const local of prev) {
-              if (!merged.some((m) => m.id === local.id) && local.messages.length > 0) {
+              if (
+                !currentDeleted.has(local.id) &&
+                !merged.some((m) => m.id === local.id) &&
+                local.messages.length > 0
+              ) {
                 merged.push(local);
               }
             }
-            return merged;
+            return merged.length > 0
+              ? merged
+              : [
+                  {
+                    id: INITIAL_SESSION_ID,
+                    title: 'New conversation',
+                    messages: [],
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                  },
+                ];
           });
         }
       } catch (err) {
@@ -129,7 +179,10 @@ export default function App() {
 
     const syncToFirestore = async () => {
       try {
-        const validChats = sessions.filter((s) => s.messages && s.messages.length > 0);
+        const deletedIds = getDeletedSessionIds();
+        const validChats = sessions.filter(
+          (s) => !deletedIds.has(s.id) && s.messages && s.messages.length > 0
+        );
         for (const s of validChats.slice(0, 15)) {
           await setDoc(
             doc(db, 'users', user.uid, 'sessions', s.id),
@@ -190,39 +243,81 @@ export default function App() {
     setActiveSessionId(newId);
   };
 
-  const handleDeleteSession = (id: string) => {
-    if (sessions.length <= 1) {
-      // Just clear current session
-      setSessions([
-        {
-          id: `session_${Date.now()}`,
-          title: 'New conversation',
-          messages: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      ]);
+  const handleDeleteSession = async (id: string) => {
+    // 1. Mark as permanently deleted tombstone so it can never be resurrected
+    addDeletedSessionId(id);
+
+    // 2. Delete from Firestore if authenticated with Google
+    if (user && !user.isGuest) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
+      } catch (err) {
+        console.warn('Failed to delete session from Firestore:', err);
+      }
+    }
+
+    // 3. Update local sessions state and localStorage immediately
+    const remaining = sessions.filter((s) => s.id !== id);
+    if (remaining.length === 0) {
+      const newId = `session_${Date.now()}`;
+      const newSession: ChatSession = {
+        id: newId,
+        title: 'New conversation',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      setSessions([newSession]);
+      setActiveSessionId(newId);
+      try {
+        localStorage.setItem('omniz_sessions', JSON.stringify([newSession]));
+        localStorage.setItem('omniz_active_session', newId);
+      } catch {}
       return;
     }
 
-    const filtered = sessions.filter((s) => s.id !== id);
-    setSessions(filtered);
+    setSessions(remaining);
+    try {
+      localStorage.setItem('omniz_sessions', JSON.stringify(remaining));
+    } catch {}
+
     if (activeSessionId === id) {
-      setActiveSessionId(filtered[0].id);
+      setActiveSessionId(remaining[0].id);
+      try {
+        localStorage.setItem('omniz_active_session', remaining[0].id);
+      } catch {}
     }
   };
 
-  const handleRenameSession = (id: string, newTitle: string) => {
+  const handleRenameSession = async (id: string, newTitle: string) => {
     const cleaned = cleanTitle(newTitle);
     setSessions((prev) =>
       prev.map((s) => (s.id === id ? { ...s, title: cleaned, updatedAt: Date.now() } : s))
     );
+    if (user && !user.isGuest) {
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'sessions', id),
+          { title: cleaned, updatedAt: Date.now() },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn('Failed to update session title in Firestore:', err);
+      }
+    }
   };
 
-  const handleClearCurrentChat = () => {
+  const handleClearCurrentChat = async () => {
+    const targetId = activeSessionId;
+    if (user && !user.isGuest) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'sessions', targetId));
+      } catch (err) {}
+    }
+
     setSessions((prev) =>
       prev.map((s) =>
-        s.id === activeSessionId
+        s.id === targetId
           ? { ...s, messages: [], title: 'New conversation', updatedAt: Date.now() }
           : s
       )
@@ -480,6 +575,28 @@ export default function App() {
     }
   };
 
+  const handleAdoptArenaWinner = (winnerContent: string, modelName: string) => {
+    const adoptedMsg: ChatMessage = {
+      id: `msg_arena_${Date.now()}`,
+      role: 'assistant',
+      content: `**[Adopted from ${modelName} in Arena Duel]**\n\n${winnerContent}`,
+      timestamp: Date.now(),
+    };
+
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === currentSession.id
+          ? {
+              ...s,
+              messages: [...s.messages, adoptedMsg],
+              updatedAt: Date.now(),
+            }
+          : s
+      )
+    );
+    setCurrentView('chat');
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#131314] text-[#e3e3e3] font-sans selection:bg-[#8ab4f8]/30 selection:text-white">
       {/* Sidebar with Chat History */}
@@ -488,11 +605,20 @@ export default function App() {
         onToggle={() => setSidebarOpen(!sidebarOpen)}
         sessions={sessions}
         activeSessionId={activeSessionId}
-        onSelectSession={(id) => setActiveSessionId(id)}
-        onNewChat={handleNewChat}
+        onSelectSession={(id) => {
+          setActiveSessionId(id);
+          setCurrentView('chat');
+        }}
+        onNewChat={() => {
+          handleNewChat();
+          setCurrentView('chat');
+        }}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
-        onSelectPrompt={handleSelectPrompt}
+        onSelectPrompt={(prompt) => {
+          handleSelectPrompt(prompt);
+          setCurrentView('chat');
+        }}
       />
 
       {/* Main AI Agent Area */}
@@ -501,24 +627,33 @@ export default function App() {
         <Header
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          currentView={currentView}
+          onSwitchView={(v) => setCurrentView(v)}
           enableSearch={enableSearch}
           setEnableSearch={setEnableSearch}
           onClearChat={handleClearCurrentChat}
           hasMessages={currentSession.messages.length > 0}
         />
 
-        {/* Omni Z AI Agent Chat View */}
-        <ChatView
-          key={currentSession.id}
-          sessionId={currentSession.id}
-          messages={currentSession.messages}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          enableSearch={enableSearch}
-          selectedModel={selectedModel}
-          onSelectModel={setSelectedModel}
-          onClearChat={handleClearCurrentChat}
-        />
+        {/* View Routing: Dual Model Compare vs Chat View */}
+        {currentView === 'arena' ? (
+          <ArenaView
+            onAdoptWinner={handleAdoptArenaWinner}
+            onExitArena={() => setCurrentView('chat')}
+          />
+        ) : (
+          <ChatView
+            key={currentSession.id}
+            sessionId={currentSession.id}
+            messages={currentSession.messages}
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            enableSearch={enableSearch}
+            selectedModel={selectedModel}
+            onSelectModel={setSelectedModel}
+            onClearChat={handleClearCurrentChat}
+          />
+        )}
       </div>
     </div>
   );

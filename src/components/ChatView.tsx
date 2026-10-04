@@ -49,7 +49,7 @@ import {
   HardDrive,
   FolderPlus,
   FileUp,
-  Sparkles
+  Dna
 } from 'lucide-react';
 import { ChatMessage, Attachment } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -106,6 +106,9 @@ const FrameImageIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4
   </svg>
 );
 
+// DNA Helix Icon for Omni Z Genesis
+export const ModelDnaIcon = Dna;
+
 const VideoClapperIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect x="2" y="4" width="20" height="16" rx="3" />
@@ -149,6 +152,11 @@ interface ChatViewProps {
 }
 
 const STARTER_PROMPTS = [
+  {
+    icon: Dna,
+    title: 'Autonomous Software & AI Builder',
+    prompt: 'Build a complete production-ready full-stack software system in a single prompt: an autonomous real-time AI Agent orchestration platform with Next.js frontend, Python FastAPI backend, PostgreSQL schema, Docker compose, and live WebSocket streaming.',
+  },
   {
     icon: ImageIcon,
     title: 'AI Image Generation',
@@ -253,6 +261,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
   ];
 
   const modelOptions = [
+    {
+      id: 'omni-z-autonomous-builder',
+      name: 'Omni Z Genesis (Auto-Builder)',
+      shortName: 'Genesis Builder',
+      badge: 'Single-Prompt Software & AI Engine',
+      desc: 'Build whole production software, full-stack systems, neural AI pipelines, microservices, and databases in a single prompt with zero limits.',
+      dotColor: 'bg-purple-400',
+      iconColor: 'text-purple-400',
+      icon: Dna,
+    },
     {
       id: 'omni-z-flash',
       name: 'Omni Z Ultra',
@@ -1842,15 +1860,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   <div className="absolute right-0 bottom-full mb-3.5 w-[360px] sm:w-[420px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_12px_40px_rgba(0,0,0,0.65)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                     {/* Header */}
                     <div className="px-3 py-2 border-b border-[#2d2f33] flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Cpu className="w-3.5 h-3.5 text-[#8ab4f8]" />
+                      <div className="flex items-center gap-2">
+                        <DnaRingLogo className="w-4 h-4" animate={false} />
                         <span className="text-[11px] font-semibold text-[#c4c7c5] uppercase tracking-wider">
                           Model Intelligence
                         </span>
                       </div>
-                      <span className="text-[10px] text-[#8ab4f8] font-medium bg-[#8ab4f8]/10 px-2 py-0.5 rounded-full border border-[#8ab4f8]/20">
-                        Google Gemini
-                      </span>
                     </div>
 
                     {/* Model Items */}

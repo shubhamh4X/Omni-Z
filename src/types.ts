@@ -80,3 +80,24 @@ export interface GeneratedImageResult {
   svg: string | null;
   description: string;
 }
+
+export interface ArenaResponse {
+  modelId: string;
+  modelName: string;
+  content: string;
+  latencyMs: number;
+  thinkingProcess?: string;
+  sources?: GroundingSource[];
+  tokenEstimate?: number;
+  error?: string;
+}
+
+export interface ArenaComparison {
+  id: string;
+  prompt: string;
+  timestamp: number;
+  modelA: ArenaResponse;
+  modelB: ArenaResponse;
+  winner?: 'modelA' | 'modelB' | 'tie' | 'both_bad' | null;
+}
+
