@@ -98,7 +98,7 @@ Visit Here : https://omni-z.up.railway.app/
 ## 📁 Project Structure
 
 ```
-├── omni-z-preview.svg           # High-resolution vector preview banner of Omni Z
+├── Omni-z-a.png                 # App preview banner of Omni Z
 ├── server.ts                    # Full-stack Express server integrating Vite dev middleware
 ├── server/                      # Server-side controllers, API routes, and agent executors
 │   └── routes/                  # Express API proxy endpoints
