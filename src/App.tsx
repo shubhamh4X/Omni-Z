@@ -509,6 +509,8 @@ export default function App() {
 
         {/* Omni Z AI Agent Chat View */}
         <ChatView
+          key={currentSession.id}
+          sessionId={currentSession.id}
           messages={currentSession.messages}
           onSendMessage={handleSendMessage}
           isLoading={isLoading}

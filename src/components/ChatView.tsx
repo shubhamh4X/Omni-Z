@@ -134,6 +134,7 @@ const DeepResearchAtomIcon: React.FC<{ className?: string }> = ({ className = "w
 );
 
 interface ChatViewProps {
+  sessionId?: string;
   messages: ChatMessage[];
   onSendMessage: (
     text: string, 
@@ -171,6 +172,7 @@ const STARTER_PROMPTS = [
 ];
 
 export const ChatView: React.FC<ChatViewProps> = ({
+  sessionId,
   messages,
   onSendMessage,
   isLoading,
@@ -413,15 +415,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Auto-scroll on new message
+  const prevSessionIdRef = useRef<string | undefined>(sessionId);
+  const prevMessageCountRef = useRef<number>(messages.length);
+  const isInitialMount = useRef<boolean>(true);
+
+  // Directly navigate to target chat without scrolling effect on session change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+    const isNewSession = prevSessionIdRef.current !== sessionId;
+
+    if (isInitialMount.current || isNewSession) {
+      isInitialMount.current = false;
+      prevSessionIdRef.current = sessionId;
+      prevMessageCountRef.current = messages.length;
+
+      // Instant jump to bottom without smooth scrolling animation
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      }
+      return;
+    }
+
+    // Only smooth-scroll when a new message is actively streaming or sent in the current session
+    if (messages.length > prevMessageCountRef.current || isLoading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMessageCountRef.current = messages.length;
+  }, [messages, isLoading, sessionId]);
 
   // Adjust textarea height automatically
   useEffect(() => {
@@ -675,7 +702,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       )}
 
       {/* Main Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-6 relative z-10">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-6 relative z-10">
         {isInitialState ? (
           /* Minimalist Welcome Screen */
           <div className="max-w-3xl mx-auto min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center py-10 px-4">

@@ -10,7 +10,7 @@ interface DnaRingLogoProps {
 
 export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
   className = 'w-7 h-7',
-  animate = false,
+  animate = true,
   galaxy = false,
   openAnimation = false,
   glow = true,
@@ -86,11 +86,9 @@ export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
     return { pathA: pA, pathB: pB, rungs: rungLines, nodes: nodeDots };
   }, []);
 
-  const animClass = animate ? 'animate-spin-slow' : '';
-
   return (
     <svg
-      className={`${className} ${animClass} shrink-0 select-none overflow-visible`}
+      className={`${className} shrink-0 select-none overflow-visible`}
       viewBox="0 0 120 120"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -140,55 +138,64 @@ export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
       {/* Subtle Central Core Ambient Glow */}
       <circle cx="60" cy="60" r="32" fill="url(#dnaCoreGlow)" />
 
-      {/* DNA Hydrogen Bond Rungs (Base Pairs) */}
-      <g stroke="url(#dnaRungGrad)" strokeWidth="1.4" strokeLinecap="round" opacity="0.85">
-        {rungs.map((rung, i) => (
-          <line
-            key={i}
-            x1={rung.x1}
-            y1={rung.y1}
-            x2={rung.x2}
-            y2={rung.y2}
-            strokeDasharray={rung.z < -0.4 ? '1.5 2' : 'none'}
-            opacity={rung.z < -0.3 ? 0.45 : 0.9}
-          />
-        ))}
-      </g>
+      {/* Rotating Toroidal Helix Geometry */}
+      <g
+        className={animate ? 'animate-spin-slow' : ''}
+        style={{
+          transformOrigin: '60px 60px',
+          animation: animate ? 'spinSlow 32s linear infinite' : undefined,
+        }}
+      >
+        {/* DNA Hydrogen Bond Rungs (Base Pairs) */}
+        <g stroke="url(#dnaRungGrad)" strokeWidth="1.4" strokeLinecap="round" opacity="0.85">
+          {rungs.map((rung, i) => (
+            <line
+              key={i}
+              x1={rung.x1}
+              y1={rung.y1}
+              x2={rung.x2}
+              y2={rung.y2}
+              strokeDasharray={rung.z < -0.4 ? '1.5 2' : 'none'}
+              opacity={rung.z < -0.3 ? 0.45 : 0.9}
+            />
+          ))}
+        </g>
 
-      {/* Strand B (Inner/Outer intertwined helical backbone) */}
-      <path
-        d={pathB}
-        stroke="url(#dnaStrandB)"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-        filter={glow ? 'url(#dnaGlowFilter)' : undefined}
-      />
+        {/* Strand B (Inner/Outer intertwined helical backbone) */}
+        <path
+          d={pathB}
+          stroke="url(#dnaStrandB)"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+          filter={glow ? 'url(#dnaGlowFilter)' : undefined}
+        />
 
-      {/* Strand A (Complementary helical backbone) */}
-      <path
-        d={pathA}
-        stroke="url(#dnaStrandA)"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-        filter={glow ? 'url(#dnaGlowFilter)' : undefined}
-      />
+        {/* Strand A (Complementary helical backbone) */}
+        <path
+          d={pathA}
+          stroke="url(#dnaStrandA)"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+          filter={glow ? 'url(#dnaGlowFilter)' : undefined}
+        />
 
-      {/* Nucleotide Nodes at Junctions */}
-      <g>
-        {nodes.map((node, i) => (
-          <circle
-            key={i}
-            cx={node.x}
-            cy={node.y}
-            r={node.r}
-            fill={node.color}
-            opacity="0.95"
-          />
-        ))}
+        {/* Nucleotide Nodes at Junctions */}
+        <g>
+          {nodes.map((node, i) => (
+            <circle
+              key={i}
+              cx={node.x}
+              cy={node.y}
+              r={node.r}
+              fill={node.color}
+              opacity="0.95"
+            />
+          ))}
+        </g>
       </g>
     </svg>
   );
