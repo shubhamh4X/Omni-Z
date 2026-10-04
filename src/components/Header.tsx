@@ -2,7 +2,8 @@ import React from 'react';
 import { 
   Globe, 
   Trash2,
-  GitCompare
+  GitCompare,
+  Sparkles
 } from 'lucide-react';
 import { DnaRingLogo } from './DnaRingLogo';
 import { UserAccountMenu } from './UserAccountMenu';
@@ -31,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 h-14 px-3 sm:px-4 flex items-center justify-between bg-[#131314]/90 backdrop-blur-md border-b border-[#222427] select-none">
       {/* Left: Mobile Toggle + Compare Button */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-2.5">
         {!sidebarOpen && (
           <button
             onClick={onToggleSidebar}

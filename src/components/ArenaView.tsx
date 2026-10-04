@@ -32,7 +32,7 @@ interface ArenaViewProps {
 const AVAILABLE_MODELS = [
   {
     id: 'omni-z-autonomous-builder',
-    name: 'Omni Z Genesis (Auto-Builder)',
+    name: 'Omni Z Pro',
     badge: 'Single-Prompt Software Builder',
     icon: Dna,
     color: 'text-purple-400',
@@ -42,7 +42,7 @@ const AVAILABLE_MODELS = [
   },
   {
     id: 'omni-z-flash',
-    name: 'Omni Z Ultra',
+    name: 'Omni Z',
     badge: 'Flagship Intelligence',
     icon: Zap,
     color: 'text-[#38bdf8]',

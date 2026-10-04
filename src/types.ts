@@ -42,6 +42,26 @@ export interface ChatMessage {
   thinkingProcess?: string;
   autoSavedMemory?: string | null;
   isStreaming?: boolean;
+  multiLlmConsensus?: {
+    activeModels: string[];
+    consensusScore?: string;
+    engineContributions?: Array<{
+      model: string;
+      role: string;
+      summary: string;
+      color: string;
+    }>;
+  };
+}
+
+export interface MultiLlmProviderConfig {
+  openaiApiKey?: string;
+  anthropicApiKey?: string;
+  deepseekApiKey?: string;
+  perplexityApiKey?: string;
+  groqApiKey?: string;
+  enabledModels: string[];
+  consensusMode: boolean;
 }
 
 export interface ChatSession {

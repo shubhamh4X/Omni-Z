@@ -33,6 +33,7 @@ const addDeletedSessionId = (id: string) => {
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedModel, setSelectedModel] = useState<string>('omni-z-flash');
+  const [deepThinkingEnabled, setDeepThinkingEnabled] = useState<boolean>(false);
   const [enableSearch, setEnableSearch] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(false);
   const [currentView, setCurrentView] = useState<'chat' | 'arena'>('chat');
@@ -402,7 +403,8 @@ export default function App() {
           attachments,
           enableSearch,
           enableMemory: true,
-          deepThinking: selectedModel === 'omni-z-think',
+          deepThinking: (deepThinkingEnabled && (selectedModel === 'omni-z-flash' || selectedModel === 'omni-z-autonomous-builder')) || selectedModel === 'omni-z-think',
+          allAiSynergy: true,
           cognitiveMode: selectedModel,
           imageAspectRatio: extraOptions?.imageAspectRatio || '1:1',
         }),
@@ -435,6 +437,7 @@ export default function App() {
         imagePrompt: data.imagePrompt || undefined,
         thinkingProcess: data.thinkingProcess || undefined,
         autoSavedMemory: data.autoSavedMemory || null,
+        multiLlmConsensus: data.multiLlmConsensus || undefined,
       };
 
       setSessions((prev) =>
@@ -522,7 +525,8 @@ export default function App() {
           attachments: [],
           enableSearch,
           enableMemory: true,
-          deepThinking: selectedModel === 'omni-z-think',
+          deepThinking: (deepThinkingEnabled && (selectedModel === 'omni-z-flash' || selectedModel === 'omni-z-autonomous-builder')) || selectedModel === 'omni-z-think',
+          allAiSynergy: true,
           cognitiveMode: selectedModel,
         }),
       });
@@ -651,6 +655,8 @@ export default function App() {
             enableSearch={enableSearch}
             selectedModel={selectedModel}
             onSelectModel={setSelectedModel}
+            deepThinkingEnabled={deepThinkingEnabled}
+            onToggleDeepThinking={setDeepThinkingEnabled}
             onClearChat={handleClearCurrentChat}
           />
         )}

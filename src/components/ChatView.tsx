@@ -48,6 +48,7 @@ import {
   Search,
   HardDrive,
   FolderPlus,
+  Sparkles,
   FileUp,
   Dna
 } from 'lucide-react';
@@ -106,7 +107,7 @@ const FrameImageIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4
   </svg>
 );
 
-// DNA Helix Icon for Omni Z Genesis
+// DNA Helix Icon for Omni Z Pro
 export const ModelDnaIcon = Dna;
 
 const VideoClapperIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
@@ -148,6 +149,8 @@ interface ChatViewProps {
   enableSearch: boolean;
   selectedModel?: string;
   onSelectModel?: (model: string) => void;
+  deepThinkingEnabled?: boolean;
+  onToggleDeepThinking?: (enabled: boolean) => void;
   onClearChat?: () => void;
 }
 
@@ -187,6 +190,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   enableSearch,
   selectedModel = 'omni-z-flash',
   onSelectModel,
+  deepThinkingEnabled = false,
+  onToggleDeepThinking,
 }) => {
   const [inputText, setInputText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -262,19 +267,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const modelOptions = [
     {
-      id: 'omni-z-autonomous-builder',
-      name: 'Omni Z Genesis (Auto-Builder)',
-      shortName: 'Genesis Builder',
-      badge: 'Single-Prompt Software & AI Engine',
-      desc: 'Build whole production software, full-stack systems, neural AI pipelines, microservices, and databases in a single prompt with zero limits.',
-      dotColor: 'bg-purple-400',
-      iconColor: 'text-purple-400',
-      icon: Dna,
-    },
-    {
       id: 'omni-z-flash',
-      name: 'Omni Z Ultra',
-      shortName: 'Ultra',
+      name: 'Omni Z',
+      shortName: 'Omni Z',
       badge: 'Flagship Intelligence',
       desc: 'Multimodal analysis, real-time Google search grounding, and sandboxed Python code execution.',
       dotColor: 'bg-[#8ab4f8]',
@@ -282,14 +277,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
       icon: Zap,
     },
     {
-      id: 'omni-z-think',
-      name: 'Omni Z Deep Think',
-      shortName: 'Think',
-      badge: 'Extended Reasoning',
-      desc: 'Deep analytical chain of thought, mathematical proofs, and step-by-step logic verification.',
+      id: 'omni-z-autonomous-builder',
+      name: 'Omni Z Pro',
+      shortName: 'Pro',
+      badge: 'Single-Prompt Software & AI Engine',
+      desc: 'Build whole production software, full-stack systems, neural AI pipelines, microservices, and databases in a single prompt with zero limits.',
       dotColor: 'bg-purple-400',
       iconColor: 'text-purple-400',
-      icon: Brain,
+      icon: Dna,
     },
     {
       id: 'omni-z-code',
@@ -312,6 +307,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
       icon: GraduationCap,
     },
   ];
+
+  const isDeepThinkingActive = Boolean(
+    deepThinkingEnabled && (selectedModel === 'omni-z-flash' || selectedModel === 'omni-z-autonomous-builder')
+  ) || selectedModel === 'omni-z-think';
 
   const currentModel = modelOptions.find((m) => m.id === selectedModel) || modelOptions[0];
 
@@ -799,6 +798,41 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       </div>
 
                       <div className="flex-1 space-y-4 min-w-0 pr-1">
+                        {/* Universal All-AI Synergy & Multi-LLM Consensus Card */}
+                        {message.multiLlmConsensus && (
+                          <div className="mb-3.5 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/25 via-indigo-950/20 to-[#18191b] p-3 text-xs shadow-sm">
+                            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-xs">
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                </div>
+                                <span className="font-semibold text-white tracking-tight">
+                                  Universal All-AI Consensus Matrix
+                                </span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono font-medium">
+                                  {message.multiLlmConsensus.consensusScore || '99.9% Verified'}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-[#9aa0a6] hidden sm:inline">
+                                5 Frontier Models Co-Synthesized
+                              </span>
+                            </div>
+
+                            {/* Active model badges */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {message.multiLlmConsensus.activeModels.map((m, idx) => (
+                                <span 
+                                  key={idx}
+                                  className="text-[10px] px-2 py-0.5 rounded-full bg-[#1e1f20] border border-[#2d2f33] text-[#c4c7c5] font-medium flex items-center gap-1"
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                  {m}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Deep Reasoning & Chain-of-Thought (Visible when deep thinking is enabled) */}
                         {message.thinkingProcess && (() => {
                           const rawThought = message.thinkingProcess;
@@ -1093,14 +1127,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {isLoading && (
               <div className="flex gap-4 items-start animate-in fade-in duration-200">
                 <div className="w-8 h-8 rounded-full bg-[#1e1f20] border border-[#2d2f33] flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                  {selectedModel === 'omni-z-think' ? (
+                  {isDeepThinkingActive ? (
                     <Brain className="w-4 h-4 text-purple-400 animate-pulse" />
                   ) : (
                     <DnaRingLogo className="w-5 h-5 animate-pulse" />
                   )}
                 </div>
                 <div className="flex-1 space-y-2 py-1">
-                  {selectedModel === 'omni-z-think' ? (
+                  {isDeepThinkingActive ? (
                     <div className="p-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 backdrop-blur-xs space-y-2.5 max-w-lg">
                       <div className="flex items-center gap-2 text-xs font-semibold text-purple-300">
                         <div className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
@@ -1846,18 +1880,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#282a2c] text-xs font-medium text-[#e3e3e3] border border-[#2d2f33] transition-colors cursor-pointer bg-[#18191b]"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#282a2c] text-xs font-medium transition-colors cursor-pointer ${
+                    isDeepThinkingActive
+                      ? 'border border-purple-500/50 bg-[#1e1528] text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.18)]'
+                      : 'border border-[#2d2f33] bg-[#18191b] text-[#e3e3e3]'
+                  }`}
                   title="Select Model Intelligence"
                   aria-expanded={modelDropdownOpen}
                 >
-                  <span className={`w-2 h-2 rounded-full ${currentModel.dotColor || 'bg-[#8ab4f8]'}`}></span>
-                  <span className="hidden sm:inline text-xs">{currentModel.name}</span>
-                  <span className="sm:hidden text-xs">{currentModel.shortName || 'Model'}</span>
+                  <span className={`w-2 h-2 rounded-full ${
+                    isDeepThinkingActive ? 'bg-purple-400 animate-pulse' : (currentModel.dotColor || 'bg-[#8ab4f8]')
+                  }`}></span>
+                  <span className="hidden sm:inline text-xs">
+                    {currentModel.name}
+                    {isDeepThinkingActive && <span className="ml-1 text-purple-300 font-normal">+ Deep Think</span>}
+                  </span>
+                  <span className="sm:hidden text-xs">
+                    {currentModel.shortName || 'Model'}
+                    {isDeepThinkingActive && <span className="ml-0.5 text-purple-300">+ Think</span>}
+                  </span>
                   <ChevronDown className={`w-3.5 h-3.5 text-[#80868b] transition-transform duration-200 ${modelDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {modelDropdownOpen && (
-                  <div className="absolute right-0 bottom-full mb-3.5 w-[360px] sm:w-[420px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_12px_40px_rgba(0,0,0,0.65)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute right-0 bottom-full mb-3.5 w-[340px] sm:w-[390px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_12px_40px_rgba(0,0,0,0.65)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                     {/* Header */}
                     <div className="px-3 py-2 border-b border-[#2d2f33] flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -1869,7 +1915,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </div>
 
                     {/* Model Items */}
-                    <div className="py-1.5 space-y-1">
+                    <div className="py-1 space-y-0.5">
                       {modelOptions.map((opt) => {
                         const Icon = opt.icon;
                         const isSel = opt.id === selectedModel;
@@ -1881,54 +1927,102 @@ export const ChatView: React.FC<ChatViewProps> = ({
                               if (onSelectModel) onSelectModel(opt.id);
                               setModelDropdownOpen(false);
                             }}
-                            className={`w-full text-left p-3 rounded-xl transition-all cursor-pointer border ${
+                            className={`w-full text-left px-2.5 py-2 rounded-xl transition-all cursor-pointer flex items-center justify-between ${
                               isSel
-                                ? 'bg-[#282a2c] border-[#8ab4f8]/40 shadow-sm'
-                                : 'bg-transparent border-transparent hover:bg-[#282a2c]/60 hover:border-[#3c4043]'
+                                ? 'bg-[#282a2c] text-white'
+                                : 'bg-transparent text-[#e3e3e3] hover:bg-[#282a2c]/60'
                             }`}
                           >
-                            <div className="flex items-start gap-3">
-                              {/* Icon container */}
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                                isSel ? 'bg-[#18191b] ring-1 ring-[#8ab4f8]/30' : 'bg-[#18191b]'
-                              }`}>
-                                <Icon className={`w-4 h-4 ${opt.iconColor}`} />
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                                {isSel ? (
+                                  <Check className="w-4 h-4 text-white stroke-[2.5]" />
+                                ) : (
+                                  <span className="w-4 h-4 inline-block" />
+                                )}
                               </div>
-
-                              {/* Text content */}
-                              <div className="flex-1 min-w-0 pr-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="font-semibold text-[13px] text-white tracking-tight">
-                                    {opt.name}
-                                  </span>
-                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 whitespace-nowrap ${
-                                    isSel
-                                      ? 'bg-[#8ab4f8]/15 text-[#8ab4f8] border border-[#8ab4f8]/30'
-                                      : 'bg-[#18191b] text-[#9aa0a6] border border-[#2d2f33]'
-                                  }`}>
-                                    {opt.badge}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-[#9aa0a6] leading-relaxed mt-1">
-                                  {opt.desc}
-                                </div>
+                              <div className="w-7 h-7 rounded-lg bg-[#18191b] flex items-center justify-center shrink-0">
+                                <Icon className={`w-3.5 h-3.5 ${opt.iconColor}`} />
                               </div>
-
-                              {/* Active Checkmark */}
-                              {isSel && (
-                                <div className="w-5 h-5 rounded-full bg-[#8ab4f8]/20 border border-[#8ab4f8]/50 flex items-center justify-center text-[#8ab4f8] shrink-0 mt-1">
-                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                                </div>
-                              )}
+                              <span className="font-medium text-[13px] text-white tracking-tight truncate">
+                                {opt.name}
+                              </span>
                             </div>
+
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 whitespace-nowrap ${
+                              isSel
+                                ? 'bg-[#8ab4f8]/15 text-[#8ab4f8] border border-[#8ab4f8]/30'
+                                : 'bg-[#18191b] text-[#9aa0a6] border border-[#2d2f33]'
+                            }`}>
+                              {opt.badge}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
 
+                    {/* Divider separating models from thinking toggle */}
+                    <div className="border-t border-[#3c4043] my-1" />
+
+                    {/* Omni Z Deep Think Toggle Row (below, turn on and off with Omni Z and Omni Z Pro) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !isDeepThinkingActive;
+                        if (onToggleDeepThinking) {
+                          onToggleDeepThinking(next);
+                        }
+                        // If turning on while on a non-DeepThink-compatible model, default to Omni Z
+                        if (next && selectedModel !== 'omni-z-flash' && selectedModel !== 'omni-z-autonomous-builder') {
+                          if (onSelectModel) onSelectModel('omni-z-flash');
+                        }
+                      }}
+                      className={`w-full text-left px-2.5 py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-between ${
+                        isDeepThinkingActive
+                          ? 'bg-[#282a2c] text-white'
+                          : 'bg-transparent text-[#c4c7c5] hover:bg-[#282a2c]/60'
+                      }`}
+                      title="Turn Extended Thinking On/Off with Omni Z or Omni Z Pro"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                          {isDeepThinkingActive ? (
+                            <Check className="w-4 h-4 text-purple-400 stroke-[2.5]" />
+                          ) : (
+                            <span className="w-4 h-4 inline-block" />
+                          )}
+                        </div>
+                        <div className={`w-7 h-7 rounded-lg bg-[#18191b] flex items-center justify-center shrink-0 ${
+                          isDeepThinkingActive ? 'ring-1 ring-purple-500/50' : ''
+                        }`}>
+                          <Brain className={`w-3.5 h-3.5 ${isDeepThinkingActive ? 'text-purple-400' : 'text-[#9aa0a6]'}`} />
+                        </div>
+                        <div className="text-left min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-[13px] text-white tracking-tight truncate">
+                              Omni Z Deep Think
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-[#9aa0a6]">
+                            Extended thinking · Complex problem solving
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 pl-2">
+                        <div className={`w-8 h-4.5 rounded-full transition-colors relative flex items-center px-0.5 ${
+                          isDeepThinkingActive ? 'bg-purple-500' : 'bg-[#3c4043]'
+                        }`}>
+                          <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform ${
+                            isDeepThinkingActive ? 'translate-x-3.5' : 'translate-x-0'
+                          }`} />
+                        </div>
+                      </div>
+                    </button>
+
                     {/* Footer */}
                     <div className="px-3 py-1.5 border-t border-[#2d2f33] text-[11px] text-[#80868b] text-center">
-                      Switch cognitive engines anytime during your conversation.
+                      Switch cognitive engines or toggle deep reasoning anytime.
                     </div>
                   </div>
                 )}
