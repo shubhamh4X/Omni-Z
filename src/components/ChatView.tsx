@@ -798,41 +798,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       </div>
 
                       <div className="flex-1 space-y-4 min-w-0 pr-1">
-                        {/* Universal All-AI Synergy & Multi-LLM Consensus Card */}
-                        {message.multiLlmConsensus && (
-                          <div className="mb-3.5 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-950/25 via-indigo-950/20 to-[#18191b] p-3 text-xs shadow-sm">
-                            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 flex items-center justify-center text-white shadow-xs">
-                                  <Sparkles className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="font-semibold text-white tracking-tight">
-                                  Universal All-AI Consensus Matrix
-                                </span>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono font-medium">
-                                  {message.multiLlmConsensus.consensusScore || '99.9% Verified'}
-                                </span>
-                              </div>
-                              <span className="text-[11px] text-[#9aa0a6] hidden sm:inline">
-                                5 Frontier Models Co-Synthesized
-                              </span>
-                            </div>
-
-                            {/* Active model badges */}
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {message.multiLlmConsensus.activeModels.map((m, idx) => (
-                                <span 
-                                  key={idx}
-                                  className="text-[10px] px-2 py-0.5 rounded-full bg-[#1e1f20] border border-[#2d2f33] text-[#c4c7c5] font-medium flex items-center gap-1"
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                  {m}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
                         {/* Deep Reasoning & Chain-of-Thought (Visible when deep thinking is enabled) */}
                         {message.thinkingProcess && (() => {
                           const rawThought = message.thinkingProcess;
