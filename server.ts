@@ -15,11 +15,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Set up body parsers (support up to 50mb for document and image uploads)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Initialize Google GenAI with dynamic key retrieval
 function getApiKey(): string {
   return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
 }
@@ -35,7 +33,6 @@ function getAiClient(customKey?: string): GoogleGenAI {
   });
 }
 
-// Helper to run Python Vector DB CLI
 function runVectorDb(cmd: string, payload?: any): Promise<any> {
   return new Promise((resolve) => {
     const pythonScript = path.join(__dirname, 'server', 'vector_db.py');
@@ -46,7 +43,7 @@ function runVectorDb(cmd: string, payload?: any): Promise<any> {
 
     execFile('python3', args, { maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) {
-        // Graceful fallback if python3 is not available in host environment (e.g. Railway minimal node image)
+
         console.warn(`[Vector DB Note] python3 execution notice: ${err.message}. Using fallback.`);
         if (cmd === 'stats') {
           return resolve({ total_entries: 0, categories: {}, available: false });
@@ -66,7 +63,6 @@ function runVectorDb(cmd: string, payload?: any): Promise<any> {
   });
 }
 
-// Helper to run Python Code Executor
 function runPythonExecutor(code: string): Promise<any> {
   return new Promise((resolve) => {
     const pythonScript = path.join(__dirname, 'server', 'python_executor.py');
@@ -99,13 +95,12 @@ function runPythonExecutor(code: string): Promise<any> {
   });
 }
 
-// Optional embedding computation with circuit-breaker to preserve quota
 let embeddingApiDisabledUntil = 0;
 
 async function getGeminiEmbedding(text: string): Promise<number[] | null> {
   const currentKey = getApiKey();
   if (!currentKey || !text) return null;
-  // If circuit breaker is active, use fast local Python vectorizer
+
   if (Date.now() < embeddingApiDisabledUntil) {
     return null;
   }
@@ -131,7 +126,7 @@ async function getGeminiEmbedding(text: string): Promise<number[] | null> {
       errMsg.includes('RESOURCE_EXHAUSTED') ||
       errMsg.includes('quota')
     ) {
-      // Disable embedding API calls for 10 minutes to avoid exhausting quota or failing on depleted credits
+
       embeddingApiDisabledUntil = Date.now() + 10 * 60 * 1000;
       console.warn('[AI Model] Embedding API quota/credits depleted. Switching to local Python vectorizer.');
     } else {
@@ -141,13 +136,11 @@ async function getGeminiEmbedding(text: string): Promise<number[] | null> {
   return null;
 }
 
-// AI Image Generation with dual fallback and 402 circuit-breaker
 let nativeImageGenDisabled = false;
 
 async function generateAiImage(prompt: string, aspectRatio = '1:1'): Promise<{ url: string; prompt: string }> {
   const cleanPrompt = prompt.replace(/[^\w\s,.-]/g, ' ').trim().slice(0, 500);
 
-  // 1. Attempt native image model only if prepayment credits are not depleted
   if (!nativeImageGenDisabled) {
     try {
       const res = await getAiClient().models.generateContent({
@@ -179,7 +172,6 @@ async function generateAiImage(prompt: string, aspectRatio = '1:1'): Promise<{ u
     }
   }
 
-  // 2. High-res AI Image Generation (works without requiring prepayment credits)
   const dimensionsMap: Record<string, { w: number; h: number }> = {
     '1:1': { w: 1024, h: 1024 },
     '16:9': { w: 1280, h: 720 },
@@ -198,18 +190,15 @@ async function generateAiImage(prompt: string, aspectRatio = '1:1'): Promise<{ u
   };
 }
 
-// Strict user-intent check: only generate an image when explicitly asked
 function isExplicitImageRequest(message: string): boolean {
   if (!message || typeof message !== 'string') return false;
   const text = message.trim().toLowerCase();
 
-  // If user is asking for code, writing, lists, explanations, or documents, definitely NOT an image
   const nonImageTerms = /\b(code|script|function|program|class|algorithm|regex|sql|html|css|component|prompt|essay|story|poem|article|paragraph|summary|outline|list|table|explanation|math|equation|steps|guide|plan|json|yaml|csv)\b/i;
   if (nonImageTerms.test(text)) {
     return false;
   }
 
-  // Must have an explicit request for an image/picture/photo/drawing
   const explicitImagePatterns = [
     /\b(?:generate|create|draw|paint|render|make)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|photo|illustration|drawing|artwork|painting|graphic|wallpaper|render)\b/i,
     /\b(?:picture|photo|image|artwork|drawing|painting)\s+of\b/i,
@@ -219,7 +208,6 @@ function isExplicitImageRequest(message: string): boolean {
   return explicitImagePatterns.some((pattern) => pattern.test(text));
 }
 
-// Resilient generateContent with exponential backoff for quota / rate limits / high-demand spikes
 async function generateWithRetry(params: any, customClientKey?: string, maxRetries = 2): Promise<any> {
   let lastError: any = null;
   const client = customClientKey
@@ -229,7 +217,6 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
       })
     : getAiClient();
 
-  // Use free-tier models. Never call paid-only models that yield 402.
   const requestedModel = params.model;
   const safeModel = (requestedModel && !requestedModel.includes('pro') && !requestedModel.includes('image'))
     ? requestedModel
@@ -267,7 +254,7 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
 
         if (isDepleted) {
           console.warn(`[AI Model] Model ${currentModel} returned 402 (prepayment credits depleted). Skipping to next free tier candidate...`);
-          break; // Move to next candidate model immediately
+          break; 
         }
 
         const isDailyQuotaExhausted =
@@ -278,7 +265,7 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
 
         if (isDailyQuotaExhausted) {
           console.warn(`[AI Model] Model ${currentModel} reached daily quota. Immediately failing over to next model candidate...`);
-          break; // Switch to next candidate model immediately
+          break; 
         }
 
         const isNotFound =
@@ -304,7 +291,7 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
           errMsg.includes('overloaded');
 
         if (isTransientOrOverloaded) {
-          // If Google Search grounding is attached, strip it immediately to bypass the Search grounding capacity bottleneck
+
           if (currentParams.config?.tools && currentParams.config.tools.length > 0) {
             console.warn(`[AI Model] Capacity limit hit on ${currentModel} with search tools. Retrying immediately with core model without tools...`);
             currentParams = {
@@ -324,11 +311,10 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
             continue;
           } else if (modelIdx < candidateModels.length - 1) {
             console.warn(`[AI Model] ${currentModel} saturated. Falling back to next candidate ${candidateModels[modelIdx + 1]}...`);
-            break; // Try next fallback model
+            break; 
           }
         }
 
-        // If not transient or last model exhausted, break inner loop to evaluate fallback
         break;
       }
     }
@@ -354,8 +340,8 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
     console.warn('[AI Model] Quota, prepayment, or temporary high-demand spike. Gracefully generating safe assistance response.');
     return {
       text: isHighDemand
-        ? `### Service Notice: Model High Demand Spike\n\nGoogle's AI model servers are currently experiencing an unusually high spike in traffic.\n\n- **Status**: The AI compute cluster is momentarily saturated.\n- **Quick Recovery**: Please tap **Retry Request** below in 5–10 seconds to regenerate your response.\n- **Tip**: You can toggle **Search: Off** at the top right to bypass third-party grounding queues.`
-        : `### Service Notice\n\nThe Google Gemini free-tier rate limit was reached or prepayment credits are depleted for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket replenishes in 30–60 seconds.\n- **Billing**: To enable unlimited high-speed capacity, manage prepayment credits at [AI Studio](https://ai.studio/projects).\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
+        ? `### Service Notice: Model High Demand Spike\n\nAI model servers are currently experiencing an unusually high spike in traffic.\n\n- **Status**: The AI compute cluster is momentarily saturated.\n- **Quick Recovery**: Please tap **Retry Request** below in 5–10 seconds to regenerate your response.\n- **Tip**: You can toggle **Search: Off** at the top right to bypass third-party grounding queues.`
+        : `### Service Notice\n\nThe service rate limit was reached for this project.\n\n- **Auto-Refresh**: The per-minute request bucket replenishes in 30–60 seconds.\n- **Billing**: To enable unlimited high-speed capacity, ensure prepayment credits or billing are active.\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
       modelUsed: 'gemini-3.1-flash-lite',
       isQuotaExceeded: true,
       isHighDemand: true,
@@ -366,9 +352,6 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
   throw lastError;
 }
 
-// ================= API ENDPOINTS =================
-
-// 1. Health & Status
 app.get('/api/status', async (_req: Request, res: Response) => {
   try {
     const dbStats = await runVectorDb('stats');
@@ -385,7 +368,6 @@ app.get('/api/status', async (_req: Request, res: Response) => {
   }
 });
 
-// Image Proxy route for cross-origin caching & reliability
 app.get('/api/image-proxy', async (req: Request, res: Response) => {
   try {
     const rawUrl = req.query.url as string;
@@ -402,7 +384,6 @@ app.get('/api/image-proxy', async (req: Request, res: Response) => {
   }
 });
 
-// AI Prompt Enhancer Endpoint
 app.post('/api/enhance-prompt', async (req: Request, res: Response) => {
   try {
     const { prompt, type = 'general' } = req.body;
@@ -433,7 +414,6 @@ Output ONLY the final enhanced prompt text, without conversational fluff.`;
   }
 });
 
-// 2. Vector DB endpoints
 app.get('/api/vector-db/list', async (req: Request, res: Response) => {
   try {
     const category = req.query.category as string | undefined;
@@ -503,7 +483,6 @@ app.post('/api/vector-db/clear', async (_req: Request, res: Response) => {
   }
 });
 
-// 3. Python Code Execution Endpoint
 app.post('/api/execute-python', async (req: Request, res: Response) => {
   try {
     const { code } = req.body;
@@ -517,7 +496,6 @@ app.post('/api/execute-python', async (req: Request, res: Response) => {
   }
 });
 
-// 4. Main Multi-Modal Agent Chat Endpoint
 app.post('/api/chat', async (req: Request, res: Response) => {
   try {
     const {
@@ -545,7 +523,7 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const effectiveApiKey = clientProvidedKey || getApiKey();
 
     if (!effectiveApiKey) {
-      // 1. Query local Vector Database for relevant context
+
       let localMemories: any[] = [];
       try {
         localMemories = await runVectorDb('query', {
@@ -612,7 +590,7 @@ print("=" * 56)
         responseBody = `Hello! I am **Omni Z**, your AI assistant. I am currently running in **Local Sandbox Mode** with native Python 3 execution, KaTeX mathematical typesetting, and local vector database memory active.`;
       }
 
-      responseBody += `\n\n---\n> 💡 **Notice**: To unlock full Google Gemini cloud reasoning and live web search, ensure your **GEMINI_API_KEY** is selected in **Settings > Secrets** in the Google AI Studio menu.`;
+      responseBody += `\n\n---\n> 💡 **Notice**: To unlock cloud reasoning and live web search, ensure your API key is configured.`;
 
       return res.json({
         text: responseBody,
@@ -627,7 +605,6 @@ print("=" * 56)
       });
     }
 
-    // Detect casual greetings or simple conversational inputs to avoid unnecessary web search latency or irrelevant vector retrieval
     const trimmedMessage = (message || '').trim();
     const isCasualGreeting = /^(hey+|hi+|hello+|howdy|hola|greetings|good\s*(morning|afternoon|evening|night)|what'?s\s*up|sup|yo|how\s*are\s*you|who\s*are\s*you|help|test|ping)[.!?\s]*$/i.test(trimmedMessage);
     const isDeveloperQuery = /(who\s*(is|are|was)\s*(your\s*)?(developer|creator|maker|builder|author|engineer|founder)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|omni(\s*z)?)|who\s*owns\s*you|tell\s*me\s*who\s*developed\s*you|your\s*developer)/i.test(trimmedMessage);
@@ -646,7 +623,6 @@ print("=" * 56)
       });
     }
 
-    // 1. Vector Memory Retrieval (High-speed local dense matching)
     let relevantMemories: any[] = [];
     let memoryContextString = '';
     if (enableMemory && trimmedMessage.length > 5 && !isCasualGreeting && !isDeveloperQuery) {
@@ -657,7 +633,6 @@ print("=" * 56)
         });
 
         if (Array.isArray(relevantMemories) && relevantMemories.length > 0) {
-          // Keep only memories with strong relevance
           const filtered = relevantMemories.filter((m) => m.similarity >= 0.35);
           if (filtered.length > 0) {
             memoryContextString = `\n\n[RECALLED LONG-TERM MEMORY FROM VECTOR DATABASE]:\n` +
@@ -669,7 +644,6 @@ print("=" * 56)
       }
     }
 
-    // 2. Prepare Universal Conversational & Intelligent Agent Directive
     let baseInstruction = `You are Omni Z, an exceptionally capable, intelligent, and versatile AI assistant.
 
 DEVELOPER & CREATOR IDENTITY (HIGHEST PRIORITY):
@@ -680,7 +654,7 @@ I’m Omni Z, one of the top models.
   * Shubham is your developer and creator. Never claim Google, OpenAI, or anyone else created or developed you.
 
 NATURAL CONVERSATIONAL ADAPTATION & HUMAN TONE (HIGHEST PRIORITY):
-- Communicate naturally, warmly, and authentically — exactly like ChatGPT and Google Gemini.
+- Communicate naturally, warmly, and authentically.
 - When the user sends a greeting (e.g., "hey", "heyy", "hi", "hello", "good morning", "what's up", "how are you"):
   * Respond naturally, warmly, and concisely in 1 to 2 friendly sentences.
   * Examples:
@@ -745,7 +719,6 @@ CORE CAPABILITIES & DIRECTIVES:
    - For detailed responses, use clear Markdown headings (## and ###), scannable bullet points, and clean tables.
    - For casual greetings or quick chats, keep it light, friendly, and natural without unnecessary headings.`;
 
-    // Apply Cognitive Mode Enhancements
     if (cognitiveMode === 'omni-z-autonomous-builder') {
       baseInstruction += `\n\n[ACTIVE COGNITIVE MODE: AUTONOMOUS FULL-STACK SOFTWARE & AI BUILDER - ZERO LIMIT]
 You are operating in Autonomous Software & AI Builder Mode. You possess the unbounded capability to construct entire software platforms, neural networks, agents, and applications in a single prompt.
@@ -772,8 +745,8 @@ You are operating as a world-class academic tutor.
 
     if (allAiSynergy) {
       baseInstruction += `\n\n[COGNITIVE SYNTHESIS UNDER THE HOOD]:
-You embody the collective intelligence of frontier models: deep recursive logic (o1/DeepSeek-R1), principal software architecture (Claude 3.7), multimodal web grounding (Gemini 3.8/Perplexity), and Python verification.
-- Always communicate with the natural, approachable ease of ChatGPT and Gemini.
+You embody the collective intelligence of frontier models: deep recursive logic, principal software architecture, multimodal web grounding, and Python verification.
+- Always communicate with a natural, approachable ease.
 - NEVER output meta-announcements, banners, model lists, or self-important operational greetings.
 - If the user says "hey" or has casual conversation, respond warmly and simply like a natural conversational partner.
 - If the user asks a technical or challenging question, synthesize all frontier depth into an authoritative, direct, and complete response.`;
@@ -793,10 +766,8 @@ Phase 3: Synthesis & Formulation
 After closing the </thinking> tag, output your complete, immaculate, and articulate final answer outside the tags.`;
     }
 
-    // 3. Assemble Conversation Contents
     const contents: any[] = [];
 
-    // Add prior conversation turns if provided
     if (Array.isArray(history) && history.length > 0) {
       for (const turn of history.slice(-8)) {
         if (turn.role && turn.content) {
@@ -808,14 +779,12 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       }
     }
 
-    // Current turn parts
     const currentParts: any[] = [];
 
-    // Handle multimodal attachments (images, PDFs, text files)
     if (Array.isArray(attachments) && attachments.length > 0) {
       for (const att of attachments) {
         if (att.dataUrl && att.type?.startsWith('image/')) {
-          // Extract base64
+
           const match = att.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
           if (match) {
             currentParts.push({
@@ -833,7 +802,6 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       }
     }
 
-    // Add user message
     if (message) {
       currentParts.push({ text: message });
     }
@@ -843,20 +811,18 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       parts: currentParts,
     });
 
-    // 4. Configure Tools & Config
     const config: any = {
       systemInstruction,
       maxOutputTokens: 8192,
     };
 
-    // Only attach Google Search tool when search is enabled AND query is not a greeting or developer query
     const shouldSearch = enableSearch && !isCasualGreeting && !isDeveloperQuery;
     if (shouldSearch) {
       config.tools = [{ googleSearch: {} }];
     }
 
     const targetModel = 'gemini-3.8-flash';
-    // Call AI model with automatic exponential backoff retry and free tier failover
+
     const response = await generateWithRetry(
       {
         model: targetModel,
@@ -868,13 +834,11 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
 
     const responseText = response.text || '';
 
-    // Extract Grounding metadata
     const candidate = response.candidates?.[0];
     const groundingMetadata = candidate?.groundingMetadata;
     const groundingChunks = groundingMetadata?.groundingChunks || [];
     const webSearchQueries = groundingMetadata?.webSearchQueries || [];
 
-    // Format grounding sources
     const sources: Array<{ title: string; url: string; snippet?: string }> = [];
     if (Array.isArray(groundingChunks)) {
       for (const chunk of groundingChunks) {
@@ -887,10 +851,8 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       }
     }
 
-    // Deduplicate sources by URL
     const uniqueSources = Array.from(new Map(sources.map((s) => [s.url, s])).values());
 
-    // Extract any python code blocks from response for instant execution
     const codeBlocks: Array<{ language: string; code: string }> = [];
     const codeRegex = /```([a-zA-Z0-9_\-]+)?\n([\s\S]*?)```/g;
     let match;
@@ -901,7 +863,6 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       });
     }
 
-    // Auto-detect if user wants to remember something or if high-value knowledge was shared
     let autoSavedMemory: string | null = null;
     const memoryKeywords = /remember that|my name is|i prefer|save to memory|take note that/i;
     if (message && memoryKeywords.test(message)) {
@@ -921,11 +882,9 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       }
     }
 
-    // Image Generation Detection & Execution
     let cleanText = responseText;
     let thinkingProcess: string | undefined = undefined;
 
-    // Extract chain of thought if model returned <thinking>...</thinking>
     const thinkingMatch = cleanText.match(/<thinking>([\s\S]*?)<\/thinking>/i);
     if (thinkingMatch) {
       thinkingProcess = thinkingMatch[1].trim();
@@ -935,7 +894,6 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
     const generatedImages: string[] = [];
     let detectedImagePrompt: string | null = null;
 
-    // A. Always strip [IMAGE_PROMPT: ...] tag from cleanText so raw tags never show in UI
     const imagePromptTagMatch = cleanText.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/i);
     let extractedImagePrompt: string | null = null;
     if (imagePromptTagMatch) {
@@ -943,13 +901,11 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       cleanText = cleanText.replace(/\[IMAGE_PROMPT:\s*[\s\S]*?\]/gi, '').trim();
     }
 
-    // B. Strip any raw ReAct mock JSON (e.g. dalle.text2im or action_input)
     if (cleanText.includes('dalle.text2im') || cleanText.includes('"action_input"') || cleanText.includes('"action":')) {
       cleanText = cleanText.replace(/\{[\s\S]*"action"[\s\S]*\}/, '').trim();
       cleanText = cleanText.replace(/\{[\s\S]*"prompt"[\s\S]*\}/, '').trim();
     }
 
-    // C. Strict check: NEVER generate an image unless the user EXPLICITLY requested an image!
     const userExplicitlyRequestedImage = isExplicitImageRequest(message);
 
     if (userExplicitlyRequestedImage) {
@@ -997,9 +953,9 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       errMsg.includes('quota');
 
     if (isQuotaOrDepleted) {
-      // Instead of crashing the client with a 500 error, return a structured assistant fallback
+
       return res.json({
-        text: `### Service Notice\n\nThe Google Gemini free-tier rate limit was temporarily reached or prepayment credits are depleted for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket automatically replenishes in 30–60 seconds. Please try your prompt again shortly.\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
+        text: `### Service Notice\n\nThe service rate limit was temporarily reached for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket automatically replenishes in 30–60 seconds. Please try your prompt again shortly.\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
         thinkingProcess: undefined,
         images: [],
         sources: [],
@@ -1025,7 +981,6 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
   }
 });
 
-// 5. Document Intelligence & Semantic Analysis Endpoint
 app.post('/api/analyze-document', async (req: Request, res: Response) => {
   try {
     const { content, fileName = 'Document', fileType = 'text/plain', storeInVectorDb = true } = req.body;
@@ -1058,14 +1013,13 @@ Please provide:
     if (response.isQuotaExceeded) {
       const lines = content.split('\n');
       const words = content.trim().split(/\s+/).length;
-      analysisText = `### Document Summary: ${fileName}\n\n- **Document Type**: \`${fileType}\`\n- **Metrics**: ${lines.length} lines, ${words.toLocaleString()} words, ${content.length.toLocaleString()} characters\n\n#### Content Excerpt:\n\`\`\`\n${content.slice(0, 600)}${content.length > 600 ? '\n... [content continues]' : ''}\n\`\`\`\n\n*Note: High-level metrics generated locally. Full semantic synthesis resumes when Gemini rate limits refresh.*`;
+      analysisText = `### Document Summary: ${fileName}\n\n- **Document Type**: \`${fileType}\`\n- **Metrics**: ${lines.length} lines, ${words.toLocaleString()} words, ${content.length.toLocaleString()} characters\n\n#### Content Excerpt:\n\`\`\`\n${content.slice(0, 600)}${content.length > 600 ? '\n... [content continues]' : ''}\n\`\`\`\n\n*Note: High-level metrics generated locally. Full semantic synthesis resumes when rate limits refresh.*`;
     }
 
-    // If requested, chunk and save to Vector Database
     let indexedChunksCount = 0;
     if (storeInVectorDb) {
       try {
-        // Create 2-4 semantic summary chunks
+
         const chunks = [
           `Document "${fileName}" Summary: ${analysisText.slice(0, 600)}`,
           `Document "${fileName}" Content Sample: ${content.slice(0, 800)}`,
@@ -1111,7 +1065,6 @@ Please provide:
   }
 });
 
-// 6. Creative Image Synthesis Endpoint
 app.post('/api/generate-image', async (req: Request, res: Response) => {
   try {
     const { prompt, aspectRatio = '1:1' } = req.body;
@@ -1131,7 +1084,6 @@ app.post('/api/generate-image', async (req: Request, res: Response) => {
   }
 });
 
-// 7. Multi-Model Arena Comparison Endpoint
 app.post('/api/arena', async (req: Request, res: Response) => {
   try {
     const { prompt, modelA = 'omni-z-flash', modelB = 'omni-z-think', enableSearch = false } = req.body;
@@ -1232,7 +1184,6 @@ You MUST begin your response by articulating your internal step-by-step reasonin
   }
 });
 
-// Setup Vite in Development or Static Server in Production
 async function setupServer() {
   const isProd = process.env.NODE_ENV === 'production';
   const distPath = path.join(__dirname, 'dist');

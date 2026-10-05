@@ -116,7 +116,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
   const [expandedThinking, setExpandedThinking] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Win stats tracked in localStorage
   const [stats, setStats] = useState(() => {
     try {
       const saved = localStorage.getItem('omniz_arena_stats');
@@ -132,7 +131,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
   const modelAObj = AVAILABLE_MODELS.find((m) => m.id === modelA) || AVAILABLE_MODELS[0];
   const modelBObj = AVAILABLE_MODELS.find((m) => m.id === modelB) || AVAILABLE_MODELS[1];
 
-  // Auto-scroll on new comparison
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [battles.length, isLoading]);
@@ -202,7 +200,7 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#131314] text-[#e3e3e3] overflow-hidden select-text">
-      {/* Arena Top Toolbar */}
+
       <div className="h-14 px-4 sm:px-6 border-b border-[#222427] bg-[#161719]/90 backdrop-blur-md flex items-center justify-between z-20">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#38bdf8]/20 via-[#a855f7]/20 to-[#f43f5e]/20 border border-[#38bdf8]/40 flex items-center justify-center text-white">
@@ -223,9 +221,8 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
           </div>
         </div>
 
-        {/* Win Stats & Controls */}
         <div className="flex items-center gap-2 sm:gap-3 text-xs">
-          {/* Battle Record Badge */}
+
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#1b1c20] border border-[#2d2f33] font-mono text-[11px]">
             <span className="text-[#38bdf8] font-bold">{stats.winsA}W</span>
             <span className="text-[#80868b]">:</span>
@@ -234,7 +231,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
             <span className="text-[#9aa0a6]">{stats.ties}T</span>
           </div>
 
-          {/* Reset Stats */}
           {(stats.winsA > 0 || stats.winsB > 0) && (
             <button
               onClick={() => {
@@ -249,7 +245,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
             </button>
           )}
 
-          {/* Back to Chat Button */}
           <button
             onClick={onExitArena}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#222427] hover:bg-[#2c2e32] text-xs text-[#c4c7c5] hover:text-white border border-[#333539] transition-colors cursor-pointer"
@@ -259,9 +254,8 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
         </div>
       </div>
 
-      {/* Model Selection Matchup Bar */}
       <div className="px-4 sm:px-6 py-2.5 bg-[#18191b] border-b border-[#282a2c] flex items-center justify-between gap-3 text-xs flex-wrap">
-        {/* Model A Dropdown */}
+
         <div className="flex items-center gap-2 flex-1 min-w-[200px]">
           <span className="text-[#9aa0a6] font-mono text-[11px] uppercase">Side A:</span>
           <select
@@ -277,13 +271,11 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
           </select>
         </div>
 
-        {/* VS Indicator */}
         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1b1c20] border border-[#2e3238] shadow-xs">
           <ArrowLeftRight className="w-3.5 h-3.5 text-[#38bdf8]" />
           <span className="font-mono text-[11px] font-semibold text-[#c4c7c5] tracking-wider uppercase">VS</span>
         </div>
 
-        {/* Model B Dropdown */}
         <div className="flex items-center gap-2 flex-1 min-w-[200px]">
           <span className="text-[#9aa0a6] font-mono text-[11px] uppercase">Side B:</span>
           <select
@@ -300,12 +292,12 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
         </div>
       </div>
 
-      {/* Main Battles Feed */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-8">
         {battles.length === 0 && !isLoading && (
           <div className="max-w-2xl mx-auto text-center py-12 space-y-6">
-            <div className="flex justify-center">
-              <DnaRingLogo className="w-16 h-16" />
+            <div className="relative inline-block">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-rose-500/20 rounded-full blur-xl opacity-75" />
+              <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" />
             </div>
 
             <div>
@@ -318,7 +310,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
               </p>
             </div>
 
-            {/* Quick Starters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left pt-2">
               {ARENA_STARTERS.map((item, idx) => (
                 <button
@@ -339,13 +330,12 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
           </div>
         )}
 
-        {/* Existing Battles */}
         {battles.map((battle) => (
           <div
             key={battle.id}
             className="max-w-6xl mx-auto bg-[#18191c] rounded-2xl border border-[#282a2e] overflow-hidden shadow-xl"
           >
-            {/* Prompt Header */}
+
             <div className="px-5 py-3.5 bg-[#141517] border-b border-[#282a2e] flex items-start gap-3">
               <div className="w-6 h-6 rounded-lg bg-[#38bdf8]/20 flex items-center justify-center text-[#38bdf8] mt-0.5 shrink-0">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -360,12 +350,11 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
               </div>
             </div>
 
-            {/* Side-by-Side Dual Columns */}
             <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#282a2e]">
-              {/* MODEL A COLUMN */}
+
               <div className="p-5 flex flex-col justify-between space-y-4">
                 <div>
-                  {/* Model Header */}
+
                   <div className="flex items-center justify-between pb-3 border-b border-[#282a2e]">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]" />
@@ -383,7 +372,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Thinking Process if present */}
                   {battle.modelA.thinkingProcess && (
                     <div className="my-3">
                       <button
@@ -411,13 +399,11 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
                     </div>
                   )}
 
-                  {/* Response Markdown */}
                   <div className="mt-4 text-xs sm:text-sm">
                     <MarkdownRenderer content={battle.modelA.content} />
                   </div>
                 </div>
 
-                {/* Column A Footer Actions */}
                 <div className="pt-4 border-t border-[#282a2e] flex items-center justify-between">
                   <button
                     onClick={() => handleCopy(`${battle.id}_a`, battle.modelA.content)}
@@ -443,10 +429,9 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
                 </div>
               </div>
 
-              {/* MODEL B COLUMN */}
               <div className="p-5 flex flex-col justify-between space-y-4">
                 <div>
-                  {/* Model Header */}
+
                   <div className="flex items-center justify-between pb-3 border-b border-[#282a2e]">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full bg-purple-400" />
@@ -464,7 +449,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Thinking Process if present */}
                   {battle.modelB.thinkingProcess && (
                     <div className="my-3">
                       <button
@@ -492,13 +476,11 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
                     </div>
                   )}
 
-                  {/* Response Markdown */}
                   <div className="mt-4 text-xs sm:text-sm">
                     <MarkdownRenderer content={battle.modelB.content} />
                   </div>
                 </div>
 
-                {/* Column B Footer Actions */}
                 <div className="pt-4 border-t border-[#282a2e] flex items-center justify-between">
                   <button
                     onClick={() => handleCopy(`${battle.id}_b`, battle.modelB.content)}
@@ -525,7 +507,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
               </div>
             </div>
 
-            {/* Voting Bar */}
             <div className="p-3.5 bg-[#141517] border-t border-[#282a2e] flex items-center justify-between gap-3 text-xs flex-wrap">
               <span className="text-[#9aa0a6] text-[11px] font-mono uppercase">
                 Select the Best Response:
@@ -572,7 +553,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
           </div>
         ))}
 
-        {/* Loading Duel Skeleton */}
         {isLoading && (
           <div className="max-w-6xl mx-auto bg-[#18191c] rounded-2xl border border-[#282a2e] overflow-hidden p-6 space-y-6 animate-pulse">
             <div className="flex items-center justify-between pb-4 border-b border-[#282a2e]">
@@ -603,7 +583,6 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
         <div ref={scrollRef} />
       </div>
 
-      {/* Arena Input Dock */}
       <div className="p-4 bg-gradient-to-t from-[#131314] via-[#131314]/95 to-transparent relative z-20">
         <div className="max-w-4xl mx-auto space-y-2">
           <div className="relative rounded-2xl bg-[#1e1f20] border border-[#3c4043] focus-within:border-[#38bdf8] focus-within:ring-1 focus-within:ring-[#38bdf8] transition-all shadow-xl">
@@ -630,7 +609,7 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
                     ? 'bg-[#1e2330] text-[#38bdf8] border-[#38bdf8]/40'
                     : 'text-[#80868b] border-transparent hover:text-white'
                 }`}
-                title="Toggle Google Search live grounding in Arena"
+                title="Toggle live search grounding in Arena"
               >
                 <Globe className="w-3.5 h-3.5" />
                 <span>Search: {enableSearch ? 'Live' : 'Off'}</span>

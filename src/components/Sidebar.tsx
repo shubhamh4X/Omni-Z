@@ -26,7 +26,6 @@ import { useAuth } from '../context/AuthContext';
 import { GoogleIcon } from './GoogleIcon';
 import { Tooltip } from './Tooltip';
 
-// Custom Gems Icon
 export const GemsIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg 
     className={className} 
@@ -42,7 +41,6 @@ export const GemsIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-
   </svg>
 );
 
-// Custom Projects / Briefcase Icon
 export const ProjectsIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
   <svg 
     className={className} 
@@ -106,7 +104,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [tutorStyle, setTutorStyle] = useState<'Socratic' | 'First Principles' | 'Practice & Quiz'>('Socratic');
   const { user, loginWithGoogle, logout } = useAuth();
 
-  // Mobile touch & pointer slide-to-collapse / slide-to-open gesture support
   const [isMobile, setIsMobile] = useState<boolean>(() => {
     if (typeof window !== 'undefined') return window.innerWidth < 768;
     return false;
@@ -146,7 +143,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Touch handlers on the open sidebar (and backdrop) for sliding to collapse with finger
   const handleTouchStart = (e: React.TouchEvent) => {
     if (!isMobile) return;
     const touch = e.touches[0];
@@ -163,7 +159,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const diffX = touch.clientX - startXRef.current;
     const diffY = touch.clientY - startYRef.current;
 
-    // Disambiguate horizontal swipe from vertical list scroll
     if (!directionLockedRef.current) {
       if (Math.hypot(diffX, diffY) > 8) {
         if (Math.abs(diffX) > Math.abs(diffY)) {
@@ -182,10 +177,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (e.cancelable) e.preventDefault();
       const width = sidebarRef.current?.offsetWidth || 256;
       if (diffX < 0) {
-        // Sliding left to collapse
+
         setDragOffset(Math.max(-width, diffX));
       } else {
-        // Slight resistance when dragging right while already open
+
         setDragOffset(Math.min(18, diffX * 0.15));
       }
     }
@@ -200,9 +195,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
 
     const elapsed = Math.max(1, Date.now() - startTimeRef.current);
-    const velocity = dragOffset / elapsed; // px/ms, negative when moved left
+    const velocity = dragOffset / elapsed; 
 
-    // Collapse if slid left by more than 50px or swiped with speed
     if (dragOffset < -50 || velocity < -0.25) {
       handleClose();
     }
@@ -212,7 +206,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     directionLockedRef.current = null;
   };
 
-  // Touch handlers for the left edge when sidebar is closed to slide it open with finger
   const handleEdgeTouchStart = (e: React.TouchEvent) => {
     if (!isMobile) return;
     const touch = e.touches[0];
@@ -246,7 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (directionLockedRef.current === 'horizontal') {
       if (e.cancelable) e.preventDefault();
       const width = 256;
-      // offset ranges from -256 to 0 as user slides right
+
       const offset = Math.min(width, Math.max(0, diffX)) - width;
       setDragOffset(offset);
     }
@@ -262,7 +255,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
 
     const width = 256;
-    const movedRight = width + dragOffset; // how many px opened
+    const movedRight = width + dragOffset; 
     const elapsed = Math.max(1, Date.now() - startTimeRef.current);
     const velocity = movedRight / elapsed;
 
@@ -276,7 +269,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     directionLockedRef.current = null;
   };
 
-  // Pointer drag on the grab handle (works for mouse dragging in Phone Preview mode)
   const handlePointerDownHandle = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -371,14 +363,13 @@ Begin our masterclass on "${topic}" now.`;
     setTutorTopic('');
   };
 
-  // Only show old conversations that actually contain messages (no empty "New conversation")
   const filteredSessions = sessions.filter(
     (s) => s.messages.length > 0 && s.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <>
-      {/* Mobile backdrop with smooth fade transition and touch swipe to collapse */}
+
       <div
         onClick={handleClose}
         onTouchStart={isOpen ? handleTouchStart : undefined}
@@ -402,7 +393,6 @@ Begin our masterclass on "${topic}" now.`;
         }`}
       />
 
-      {/* Sidebar Container: Transitions smoothly between w-64 (open) and w-[68px] (closed rail on desktop), with finger slide on mobile */}
       <aside
         ref={sidebarRef}
         onTouchStart={handleTouchStart}
@@ -430,17 +420,15 @@ Begin our masterclass on "${topic}" now.`;
           }
         `}
       >
-        {/* ========================================================================= */}
-        {/* COLLAPSED RAIL VIEW (Active on desktop when sidebar is closed) */}
-        {/* ========================================================================= */}
+
         <div
           className={`w-[68px] h-full flex flex-col items-center py-3.5 justify-between shrink-0 transition-opacity duration-200 overflow-visible relative z-40 ${
             isOpen || (isMobile && isDragging && isEdgeDragRef.current) ? 'hidden' : 'flex'
           }`}
         >
-          {/* Top Section: Only Omni Z Logo (Clicking expands sidebar) + 6 Feature Icons */}
+
           <div className="flex flex-col items-center gap-4 w-full overflow-visible">
-            {/* Top: DNA Ring Logo ONLY with Bubble Pop-up */}
+
             <div className="relative group flex items-center justify-center w-full">
               <button
                 onClick={onToggle}
@@ -472,9 +460,8 @@ Begin our masterclass on "${topic}" now.`;
               </div>
             </div>
 
-            {/* Vertical Features Strip with Smooth Bubble Pop-Ups matching screenshots */}
             <div className="flex flex-col items-center gap-1.5 w-full px-2 overflow-visible">
-              {/* 1. New Chat (Circular Button with Smooth Bubble Pop-Up) */}
+
               <div className="relative group flex items-center justify-center w-full">
                 <button
                   onClick={onNewChat}
@@ -507,7 +494,6 @@ Begin our masterclass on "${topic}" now.`;
                   </svg>
                 </button>
 
-                {/* Bubble Type Pop Up on Hover */}
                 <div className="absolute left-[46px] top-1/2 -translate-y-1/2 pl-2.5 z-50 pointer-events-none group-hover:pointer-events-auto">
                   <button
                     onClick={(e) => {
@@ -531,7 +517,6 @@ Begin our masterclass on "${topic}" now.`;
                 </div>
               </div>
 
-              {/* 2. Search History (Magnifying Glass with Smooth Bubble Pop-Up) */}
               <div className="relative group flex items-center justify-center w-full">
                 <button
                   onClick={handleSearchClick}
@@ -563,7 +548,6 @@ Begin our masterclass on "${topic}" now.`;
                 </div>
               </div>
 
-              {/* 3. Guided Tutor & Deep Learning (Graduation Cap with Smooth Bubble Pop-Up) */}
               <div className="relative group flex items-center justify-center w-full">
                 <button
                   onClick={() => setActiveModal('tutor')}
@@ -595,7 +579,6 @@ Begin our masterclass on "${topic}" now.`;
                 </div>
               </div>
 
-              {/* 4. Explore Gems & Custom Personas (Gem Icon with Smooth Bubble Pop-Up) */}
               <div className="relative group flex items-center justify-center w-full">
                 <button
                   onClick={() => setActiveModal('gems')}
@@ -627,7 +610,6 @@ Begin our masterclass on "${topic}" now.`;
                 </div>
               </div>
 
-              {/* 5. Projects & Saved Artifacts (Case / Folder Icon with Smooth Bubble Pop-Up) */}
               <div className="relative group flex items-center justify-center w-full">
                 <button
                   onClick={() => setActiveModal('projects')}
@@ -661,13 +643,12 @@ Begin our masterclass on "${topic}" now.`;
             </div>
           </div>
 
-          {/* Bottom Avatar in Rail with Smooth Bubble Pop-Up */}
           {user ? (
             <div className="relative group flex items-center justify-center w-full">
               {user.photoURL ? (
                 <img
                   src={user.photoURL}
-                  alt={user.displayName || 'Google User'}
+                  alt={user.displayName || 'User'}
                   referrerPolicy="no-referrer"
                   className="w-8 h-8 rounded-full object-cover border border-white/20 shrink-0 shadow-sm cursor-pointer hover:border-white/50 transition-colors"
                 />
@@ -726,15 +707,12 @@ Begin our masterclass on "${topic}" now.`;
           )}
         </div>
 
-        {/* ========================================================================= */}
-        {/* EXPANDED FULL SIDEBAR VIEW (Active when isOpen = true or dragging open from edge) */}
-        {/* ========================================================================= */}
         <div
           className={`w-64 h-full flex flex-col shrink-0 transition-opacity duration-200 overflow-hidden ${
             isOpen || (isMobile && isDragging && isEdgeDragRef.current) ? 'flex' : 'hidden'
           }`}
         >
-          {/* Top Header: Logo + Brand Title + Collapse Button */}
+
           <div className="px-4 pt-3.5 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <DnaRingLogo className="w-6 h-6 shrink-0" animate={true} glow={true} />
@@ -760,7 +738,6 @@ Begin our masterclass on "${topic}" now.`;
             </div>
           </div>
 
-          {/* New Chat Button */}
           <div className="px-3 pt-3 pb-1">
             <button
               onClick={onNewChat}
@@ -771,7 +748,6 @@ Begin our masterclass on "${topic}" now.`;
             </button>
           </div>
 
-          {/* Search Button / Input */}
           <div className="px-3 pt-1">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
@@ -795,7 +771,6 @@ Begin our masterclass on "${topic}" now.`;
             )}
           </div>
 
-          {/* Feature Quick Launch Links */}
           <div className="px-3 pt-1 pb-2 space-y-0.5 border-b border-[#27282b]/60">
             <button
               onClick={() => setActiveModal('tutor')}
@@ -820,7 +795,6 @@ Begin our masterclass on "${topic}" now.`;
             </button>
           </div>
 
-          {/* Recent Conversations List */}
           <div className="flex-1 overflow-y-auto px-2 pt-0.5 space-y-0.5 scrollbar-none">
             <div className="text-[13px] font-medium text-[#c4c7c5] px-3 pt-1.5 pb-0.5 select-none">
               Recent
@@ -869,7 +843,6 @@ Begin our masterclass on "${topic}" now.`;
                       )}
                     </div>
 
-                    {/* Actions Menu (3 dots) matching user reference screenshot */}
                     {!isEditing && (
                       <div className="relative shrink-0 flex items-center">
                         <button
@@ -887,7 +860,6 @@ Begin our masterclass on "${topic}" now.`;
                           <MoreVertical className="w-3.5 h-3.5" />
                         </button>
 
-                        {/* Dropdown Menu */}
                         {menuOpenId === session.id && (
                           <div
                             onClick={(e) => e.stopPropagation()}
@@ -918,7 +890,6 @@ Begin our masterclass on "${topic}" now.`;
                       </div>
                     )}
 
-                    {/* Save / Cancel rename controls */}
                     {isEditing && (
                       <div className="flex items-center gap-1 shrink-0">
                         <button
@@ -944,7 +915,6 @@ Begin our masterclass on "${topic}" now.`;
             )}
           </div>
 
-          {/* Bottom User Info with Google Login Integration */}
           <div className="p-3 border-t border-[#27282b] bg-[#18191b]">
             {user ? (
               <div className="flex items-center justify-between gap-2">
@@ -952,7 +922,7 @@ Begin our masterclass on "${topic}" now.`;
                   {user.photoURL ? (
                     <img
                       src={user.photoURL}
-                      alt={user.displayName || 'Google User'}
+                      alt={user.displayName || 'User'}
                       referrerPolicy="no-referrer"
                       className="w-8 h-8 rounded-full object-cover border border-white/20 shrink-0 shadow-sm"
                     />
@@ -963,7 +933,7 @@ Begin our masterclass on "${topic}" now.`;
                   )}
                   <div className="truncate">
                     <div className="text-xs font-semibold text-[#e3e3e3] truncate">
-                      {user.displayName || 'Google User'}
+                      {user.displayName || 'User'}
                     </div>
                     <div className="text-[11px] text-[#80868b] truncate">
                       {user.email}
@@ -973,7 +943,7 @@ Begin our masterclass on "${topic}" now.`;
                 <button
                   onClick={() => logout()}
                   className="p-1.5 rounded-lg text-[#80868b] hover:text-red-400 hover:bg-[#282a2c] transition-colors cursor-pointer shrink-0"
-                  title="Sign out of Google"
+                  title="Sign out"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -990,7 +960,6 @@ Begin our masterclass on "${topic}" now.`;
           </div>
         </div>
 
-        {/* Mobile tactile slide-to-collapse grab handle */}
         {(isOpen || (isMobile && isDragging && isEdgeDragRef.current)) && (
           <div
             onPointerDown={handlePointerDownHandle}
@@ -1008,7 +977,6 @@ Begin our masterclass on "${topic}" now.`;
         )}
       </aside>
 
-      {/* Mobile edge swipe detector to slide open sidebar with finger */}
       {!isOpen && (
         <div
           onTouchStart={handleEdgeTouchStart}
@@ -1021,11 +989,6 @@ Begin our masterclass on "${topic}" now.`;
         />
       )}
 
-      {/* ========================================================================= */}
-      {/* FEATURE MODALS & DRAWERS */}
-      {/* ========================================================================= */}
-
-      {/* 1. Guided Tutor Modal (GraduationCap) */}
       {activeModal === 'tutor' && (
         <div 
           onClick={() => setActiveModal(null)}
@@ -1035,7 +998,7 @@ Begin our masterclass on "${topic}" now.`;
             onClick={(e) => e.stopPropagation()}
             className="bg-[#1e1f20] border border-[#3c4043] rounded-2xl w-full max-w-xl p-5 sm:p-6 shadow-2xl space-y-5 my-auto max-h-[92vh] overflow-y-auto scrollbar-none"
           >
-            {/* Modal Header */}
+
             <div className="flex items-center justify-between border-b border-[#2d2f33] pb-3.5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-[#c58af9] flex items-center justify-center shadow-inner">
@@ -1055,7 +1018,6 @@ Begin our masterclass on "${topic}" now.`;
               </button>
             </div>
 
-            {/* Custom Interactive Topic Form */}
             <form onSubmit={handleStartCustomTutor} className="space-y-4 bg-[#131314]/70 p-4 rounded-xl border border-[#2d2f33]">
               <div>
                 <label className="block text-xs font-semibold text-[#e3e3e3] mb-1.5">
@@ -1072,7 +1034,6 @@ Begin our masterclass on "${topic}" now.`;
                 </div>
               </div>
 
-              {/* Quick Topic Chips */}
               <div>
                 <span className="text-[11px] font-medium text-[#80868b] block mb-1.5">Popular topics:</span>
                 <div className="flex flex-wrap gap-1.5">
@@ -1096,7 +1057,6 @@ Begin our masterclass on "${topic}" now.`;
                 </div>
               </div>
 
-              {/* Skill Level & Teaching Style Controls */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 <div>
                   <label className="block text-[11px] font-semibold text-[#9aa0a6] mb-1">Knowledge Level</label>
@@ -1148,7 +1108,6 @@ Begin our masterclass on "${topic}" now.`;
               </button>
             </form>
 
-            {/* Curated Instant Lessons */}
             <div className="space-y-2 pt-1">
               <div className="text-xs font-semibold text-[#9aa0a6] uppercase tracking-wider px-1">
                 Or jump into a masterclass:
@@ -1196,7 +1155,6 @@ Begin our masterclass on "${topic}" now.`;
         </div>
       )}
 
-      {/* 2. Gems & Custom Agents Modal (GemsIcon) */}
       {activeModal === 'gems' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-[#1e1f20] border border-[#3c4043] rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4">
@@ -1280,7 +1238,6 @@ Begin our masterclass on "${topic}" now.`;
         </div>
       )}
 
-      {/* 3. Projects & Saved Artifacts Modal (ProjectsIcon) */}
       {activeModal === 'projects' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="bg-[#1e1f20] border border-[#3c4043] rounded-2xl w-full max-w-lg p-5 shadow-2xl space-y-4">

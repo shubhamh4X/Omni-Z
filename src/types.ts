@@ -100,4 +100,3 @@ export interface ArenaComparison {
   modelB: ArenaResponse;
   winner?: 'modelA' | 'modelB' | 'tie' | 'both_bad' | null;
 }
-

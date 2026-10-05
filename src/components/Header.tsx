@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
         ? 'bg-[#000000]/95 border-b border-[#1c1c1e]'
         : 'bg-[#131314]/90 border-b border-[#222427]'
     }`}>
-      {/* Left: Mobile Toggle + Compare Button */}
+
       <div className="flex items-center gap-2 sm:gap-2.5">
         {!sidebarOpen && (
           <Tooltip content="Open sidebar" position="bottom" align="start">
@@ -48,7 +48,6 @@ export const Header: React.FC<HeaderProps> = ({
           </Tooltip>
         )}
 
-        {/* Compare Feature Button */}
         {onSwitchView && (
           <Tooltip
             content={currentView === 'arena' ? 'Return to Default Chat' : 'Compare AI models side-by-side'}
@@ -80,7 +79,6 @@ export const Header: React.FC<HeaderProps> = ({
         )}
       </div>
 
-      {/* Right: Temporary Chat Feature */}
       <div className="flex items-center gap-2 sm:gap-2.5">
         {onToggleTemporaryChat && (
           <TemporaryChatButton

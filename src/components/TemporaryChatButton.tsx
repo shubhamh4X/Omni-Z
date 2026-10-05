@@ -12,11 +12,11 @@ export const TemporaryChatIcon: React.FC<{ className?: string }> = ({ className 
     strokeLinejoin="round"
     className={className}
   >
-    {/* Segment 1: Top arc */}
+
     <path d="M 8.2 3.6 A 8.8 8.8 0 0 1 15.8 3.6" />
-    {/* Segment 2: Right arc */}
+
     <path d="M 19.8 7.6 A 8.8 8.8 0 0 1 18.5 16.5" />
-    {/* Segment 3: Bottom-left arc with speech pointer tail */}
+
     <path d="M 14.5 20 A 8.8 8.8 0 0 1 7.8 19.4 L 3.5 21 L 4.8 17.2 A 8.8 8.8 0 0 1 3.5 12 A 8.8 8.8 0 0 1 5.2 7.2" />
   </svg>
 );
@@ -32,7 +32,7 @@ export const TemporaryChatButton: React.FC<TemporaryChatButtonProps> = ({
 }) => {
   return (
     <div className="flex items-center gap-1.5">
-      {/* Temporary Chat Toggle Button */}
+
       <Tooltip
         content={isTemporaryChat ? 'Temporary chat is active (click to exit)' : 'Turn on temporary chat'}
         position="bottom"
@@ -48,15 +48,13 @@ export const TemporaryChatButton: React.FC<TemporaryChatButtonProps> = ({
           aria-label={isTemporaryChat ? 'Exit temporary chat' : 'Turn on temporary chat'}
         >
           <TemporaryChatIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />
-          
-          {/* Active status indicator dot */}
+
           {isTemporaryChat && (
             <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-white ring-2 ring-[#131314] animate-pulse" />
           )}
         </button>
       </Tooltip>
 
-      {/* Direct Close Button in Header when in Temporary Chat (matching Gemini reference) */}
       {isTemporaryChat && (
         <Tooltip content="Close temporary chat" position="bottom" align="end">
           <button

@@ -10,7 +10,6 @@ import { doc, setDoc, deleteDoc, getDocs, collection, query, orderBy, limit } fr
 
 const INITIAL_SESSION_ID = 'session_default';
 
-// Helper to track permanently deleted session IDs (tombstones) so refreshes and merges never resurrect them
 const getDeletedSessionIds = (): Set<string> => {
   try {
     const saved = localStorage.getItem('omniz_deleted_sessions');
@@ -48,7 +47,6 @@ export default function App() {
     setIsLoading(false);
   };
 
-  // Multi-session chat management
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     try {
       const deletedIds = getDeletedSessionIds();
@@ -87,7 +85,6 @@ export default function App() {
     return INITIAL_SESSION_ID;
   });
 
-  // Temporary Chat Feature State (Incognito / Non-persisted session)
   const [isTemporaryChat, setIsTemporaryChat] = useState<boolean>(false);
   const [temporarySession, setTemporarySession] = useState<ChatSession>({
     id: 'temporary_chat_session',
@@ -122,7 +119,6 @@ export default function App() {
     setIsTemporaryChat(false);
   };
 
-  // Sync sessions to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('omniz_sessions', JSON.stringify(sessions));
@@ -131,14 +127,12 @@ export default function App() {
     }
   }, [sessions]);
 
-  // Sync activeSessionId to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('omniz_active_session', activeSessionId);
     } catch (e) {}
   }, [activeSessionId]);
 
-  // Load sessions from Firestore when user logs in with Google
   useEffect(() => {
     if (!user || user.isGuest) return;
 
@@ -160,7 +154,6 @@ export default function App() {
           const data = docSnap.data();
           const docId = data.id || docSnap.id;
 
-          // Prune stale tombstone from Firestore immediately
           if (deletedIds.has(docId)) {
             deleteDoc(doc(db, 'users', user.uid, 'sessions', docId)).catch(() => {});
             return;
@@ -218,7 +211,6 @@ export default function App() {
     };
   }, [user]);
 
-  // Sync sessions to Firestore when user is authenticated with Google
   useEffect(() => {
     if (!user || user.isGuest) return;
 
@@ -249,7 +241,6 @@ export default function App() {
     syncToFirestore();
   }, [sessions, user]);
 
-  // Current session with guaranteed fallback
   const currentSession = isTemporaryChat
     ? temporarySession
     : sessions.find((s) => s.id === activeSessionId) || sessions[0] || {
@@ -260,7 +251,6 @@ export default function App() {
         updatedAt: Date.now(),
       };
 
-  // Sync activeSessionId if currentSession changed (only for regular sessions)
   useEffect(() => {
     if (!isTemporaryChat && currentSession && activeSessionId !== currentSession.id) {
       setActiveSessionId(currentSession.id);
@@ -278,11 +268,11 @@ export default function App() {
       });
       return;
     }
-    // If current session is already an empty new conversation, remain on it
+
     if (currentSession && currentSession.messages.length === 0) {
       return;
     }
-    // Check if there is already an existing empty session to switch to
+
     const existingEmpty = sessions.find((s) => s.messages.length === 0);
     if (existingEmpty) {
       setActiveSessionId(existingEmpty.id);
@@ -301,10 +291,9 @@ export default function App() {
   };
 
   const handleDeleteSession = async (id: string) => {
-    // 1. Mark as permanently deleted tombstone so it can never be resurrected
+
     addDeletedSessionId(id);
 
-    // 2. Delete from Firestore if authenticated with Google
     if (user && !user.isGuest) {
       try {
         await deleteDoc(doc(db, 'users', user.uid, 'sessions', id));
@@ -313,7 +302,6 @@ export default function App() {
       }
     }
 
-    // 3. Update local sessions state and localStorage immediately
     const remaining = sessions.filter((s) => s.id !== id);
     if (remaining.length === 0) {
       const newId = `session_${Date.now()}`;
@@ -399,7 +387,6 @@ export default function App() {
   ) => {
     if (!text && attachments.length === 0) return;
 
-    // Resolve target session safely
     const targetSessionId = currentSession?.id || activeSessionId || INITIAL_SESSION_ID;
     const currentMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
 
@@ -411,7 +398,6 @@ export default function App() {
       attachments,
     };
 
-    // Update session title if first message
     const isFirstMessage = currentMessages.length === 0;
     const cleanPromptText = cleanTitle(text);
     const newTitle = isFirstMessage
@@ -420,7 +406,6 @@ export default function App() {
         : 'Attachment Query'
       : cleanTitle(currentSession?.title || 'Conversation');
 
-    // Append user message immediately
     const updatedMessages = [...currentMessages, userMessage];
 
     if (isTemporaryChat) {
@@ -541,7 +526,7 @@ export default function App() {
       }
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('AbortError')) {
-        // Generation was stopped by user
+
         return;
       }
       console.error('Chat error:', err);
@@ -578,7 +563,7 @@ export default function App() {
   };
 
   const handleSelectPrompt = async (prompt: string, customTitle?: string) => {
-    // If the current active session is already empty, reuse it
+
     let targetSessionId = activeSessionId;
     const isCurrentEmpty = currentSession && currentSession.messages.length === 0;
     const baseTitle = cleanTitle(customTitle || prompt);
@@ -704,7 +689,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#131314] text-[#e3e3e3] font-sans selection:bg-[#8ab4f8]/30 selection:text-white">
-      {/* Sidebar with Chat History */}
+
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -743,9 +728,8 @@ export default function App() {
         }}
       />
 
-      {/* Main AI Agent Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-0 bg-[#131314]">
-        {/* Top Header */}
+
         <Header
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
@@ -759,7 +743,6 @@ export default function App() {
           onToggleTemporaryChat={handleToggleTemporaryChat}
         />
 
-        {/* View Routing: Dual Model Compare vs Chat View */}
         {currentView === 'arena' ? (
           <ArenaView
             onAdoptWinner={handleAdoptArenaWinner}

@@ -25,7 +25,6 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
   const [copiedDomain, setCopiedDomain] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click or escape
   useEffect(() => {
     if (!menuOpen) return;
 
@@ -85,7 +84,6 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
     );
   }
 
-  // If user is not logged in: Show "Sign in with Google" button
   if (!user) {
     const isDomainError = authError === 'unauthorized-domain';
 
@@ -107,7 +105,6 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
           </span>
         </button>
 
-        {/* Unauthorized Domain Guide or Auth Error */}
         {authError && (
           <div className={`absolute right-0 top-full mt-2 ${isDomainError ? 'w-80 sm:w-96' : 'w-72'} p-4 bg-[#1e1f20] border border-amber-500/40 rounded-2xl text-xs text-[#e3e3e3] shadow-2xl z-50 animate-in fade-in slide-in-from-top-2 duration-200`}>
             {isDomainError ? (
@@ -126,10 +123,9 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
                 </div>
 
                 <p className="text-[11px] text-[#c4c7c5] leading-relaxed">
-                  Firebase Authentication requires this Cloud Run domain to be added to your <span className="text-white font-medium">Authorized Domains</span> list before Google OAuth popups can authenticate.
+                  Authentication requires this domain to be added to your <span className="text-white font-medium">Authorized Domains</span> list before OAuth popups can authenticate.
                 </p>
 
-                {/* Domain Copy Box */}
                 <div className="p-2.5 rounded-xl bg-[#131314] border border-[#3c4043] flex items-center justify-between gap-2 font-mono text-[11px]">
                   <span className="truncate text-[#8ab4f8] select-all">{currentHost}</span>
                   <button
@@ -151,7 +147,6 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
                   </button>
                 </div>
 
-                {/* Direct Action Link */}
                 <a
                   href={firebaseSettingsUrl}
                   target="_blank"
@@ -162,7 +157,6 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
 
-                {/* Instant Local Guest Option */}
                 <div className="pt-1 border-t border-[#2d2f33] flex items-center justify-between">
                   <span className="text-[10px] text-[#80868b]">Or continue immediately:</span>
                   <button
@@ -195,7 +189,6 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
     );
   }
 
-  // If user is logged in: Show Avatar + User Menu Dropdown
   const displayName = user.displayName || user.email?.split('@')[0] || (user.isGuest ? 'Guest User' : 'User');
   const initial = (displayName[0] || 'U').toUpperCase();
 
@@ -226,10 +219,9 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
         <ChevronDown className={`w-3 h-3 text-[#80868b] transition-transform duration-200 ${menuOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Account Details Popup */}
       {menuOpen && (
         <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-2xl p-4 z-50 space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
-          {/* Header Card */}
+
           <div className="flex items-center gap-3 pb-3 border-b border-[#2d2f33]">
             {user.photoURL ? (
               <img
@@ -254,14 +246,13 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
                 ) : (
                   <div className="flex items-center gap-1 text-[#34a853]">
                     <CheckCircle2 className="w-3 h-3 shrink-0" />
-                    <span>Google Verified</span>
+                    <span>Verified</span>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Account Status Information */}
           <div className="p-2.5 rounded-xl bg-[#282a2c]/60 border border-[#3c4043]/40 space-y-1.5 text-xs text-[#c4c7c5]">
             <div className="flex items-center justify-between">
               <span className="text-[#80868b]">Auth Provider:</span>
@@ -284,13 +275,12 @@ export const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ compact = fals
             </div>
           </div>
 
-          {/* Sign Out Button */}
           <button
             onClick={handleSignOut}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#282a2c] hover:bg-red-500/20 text-[#c4c7c5] hover:text-red-300 border border-transparent hover:border-red-500/30 text-xs font-medium transition-all cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>{user.isGuest ? 'Sign out of profile' : 'Sign out of Google'}</span>
+            <span>{user.isGuest ? 'Sign out of profile' : 'Sign out'}</span>
           </button>
         </div>
       )}

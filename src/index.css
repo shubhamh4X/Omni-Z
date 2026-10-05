@@ -56,16 +56,6 @@
   transform-origin: center center;
 }
 
-.dna-ring-logo {
-  filter: drop-shadow(0 0 1.5px rgba(129, 140, 248, 0.25));
-  transition: filter 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.dna-ring-logo:hover,
-.group:hover .dna-ring-logo {
-  filter: drop-shadow(0 0 3.5px rgba(129, 140, 248, 0.45));
-}
-
 .animate-galaxy-spin {
   animation: galaxySpin 16s linear infinite;
   transform-origin: center center;
@@ -92,12 +82,12 @@
 }
 
 @theme {
-  --font-sans: 'Inter', 'Google Sans', 'Google Sans Text', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 }
 
 :root {
-  --font-family: 'Inter', 'Google Sans', 'Google Sans Text', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family: 'Inter', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 }
 
@@ -125,7 +115,7 @@ code, pre, kbd, .font-mono {
   word-spacing: normal;
 }
 
-/* Custom subtle scrollbar */
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -144,7 +134,7 @@ code, pre, kbd, .font-mono {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Omni Z High-Readability Document & Markdown Typography */
+
 .omniz-content {
   color: #e3e3e3;
   font-size: 15.5px;

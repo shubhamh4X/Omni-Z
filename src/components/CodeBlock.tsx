@@ -78,14 +78,14 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
 
   return (
     <div className="my-3.5 rounded-2xl border border-[#2d2f33] bg-[#1e1f20] text-[#e3e3e3] overflow-hidden shadow-lg font-mono text-sm">
-      {/* Header bar */}
+
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#2d2f33] bg-[#242628] text-xs text-[#9aa0a6]">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-[#8ab4f8]"></span>
           <span className="font-semibold uppercase tracking-wider text-[#c4c7c5]">{cleanLang}</span>
         </div>
         <div className="flex items-center gap-2">
-          {/* Toggle Live Preview for HTML/SVG */}
+
           {isRenderable && (
             <button
               onClick={() => setShowPreview(!showPreview)}
@@ -96,7 +96,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
             </button>
           )}
 
-          {/* 1-Click Python Execution */}
           {isPython && (
             <button
               onClick={handleExecute}
@@ -128,7 +127,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
         </div>
       </div>
 
-      {/* Code body or Live Preview */}
       {showPreview && isRenderable ? (
         <div className="p-4 bg-white rounded-b-2xl min-h-[160px] flex items-center justify-center">
           {cleanLang === 'svg' ? (
@@ -150,7 +148,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code }) => {
         </div>
       )}
 
-      {/* Embedded Python Execution Result Console */}
       {showResult && (
         <div className="border-t border-[#2d2f33] bg-[#141517] p-3 text-xs">
           <div className="flex items-center justify-between text-[#9aa0a6] mb-2">

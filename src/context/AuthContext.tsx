@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           isGuest: false,
         });
       } else {
-        // Check for local guest session if Firebase is not authenticated
+
         try {
           const storedGuest = localStorage.getItem('omniz_guest_user');
           if (storedGuest) {
@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAuthError('unauthorized-domain');
         return;
       }
-      setAuthError(error?.message || 'Failed to sign in with Google. Please try again.');
+      setAuthError(error?.message || 'Failed to sign in. Please try again.');
     }
   };
 

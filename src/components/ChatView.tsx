@@ -58,7 +58,6 @@ import { DnaRingLogo } from './DnaRingLogo';
 import { TemporaryChatIcon } from './TemporaryChatButton';
 import { Tooltip } from './Tooltip';
 
-// Pixel-perfect SVG icons matching Google Gemini design
 const GoogleDriveOutlineIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <polygon points="8.5 2 15.5 2 21.5 12.5 18 18.5 6 18.5 2.5 12.5" />
@@ -109,7 +108,6 @@ const FrameImageIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4
   </svg>
 );
 
-// DNA Helix Icon for Omni Z Pro
 export const ModelDnaIcon = Dna;
 
 const VideoClapperIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
@@ -279,7 +277,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       name: 'Omni Z',
       shortName: 'Omni Z',
       badge: 'Flagship Intelligence',
-      desc: 'Multimodal analysis, real-time Google search grounding, and sandboxed Python code execution.',
+      desc: 'Multimodal analysis, real-time search grounding, and sandboxed Python code execution.',
       dotColor: 'bg-[#8ab4f8]',
       iconColor: 'text-[#8ab4f8]',
       icon: Zap,
@@ -322,7 +320,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const currentModel = modelOptions.find((m) => m.id === selectedModel) || modelOptions[0];
 
-  // Close Model Intelligence dropdown when clicking elsewhere
   useEffect(() => {
     if (!modelDropdownOpen) return;
 
@@ -349,7 +346,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
     };
   }, [modelDropdownOpen]);
 
-  // Close Attach dropdown when clicking elsewhere
   useEffect(() => {
     if (!attachMenuOpen) return;
 
@@ -384,7 +380,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setTimeout(() => setCopiedThoughtId(null), 2000);
   };
 
-  // AI Prompt Enhancer
   const handleEnhancePrompt = async () => {
     if (!inputText.trim() || isEnhancingPrompt) return;
     setIsEnhancingPrompt(true);
@@ -408,7 +403,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
-  // AI Image Remix / Variation generator
   const handleRemixImage = (promptText?: string) => {
     if (!promptText) return;
     const remixPrompt = `Generate a high-fidelity visual remix and variation of: "${promptText}". Introduce dramatic lighting shifts, elevated detail, and cinematic perspective.`;
@@ -450,7 +444,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const prevMessageCountRef = useRef<number>(messages.length);
   const isInitialMount = useRef<boolean>(true);
 
-  // Directly navigate to target chat without scrolling effect on session change
   useEffect(() => {
     const isNewSession = prevSessionIdRef.current !== sessionId;
 
@@ -459,7 +452,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
       prevSessionIdRef.current = sessionId;
       prevMessageCountRef.current = messages.length;
 
-      // Instant jump to bottom without smooth scrolling animation
       if (messagesContainerRef.current) {
         messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
       } else {
@@ -468,14 +460,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
       return;
     }
 
-    // Only smooth-scroll when a new message is actively streaming or sent in the current session
     if (messages.length > prevMessageCountRef.current || isLoading) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
     prevMessageCountRef.current = messages.length;
   }, [messages, isLoading, sessionId]);
 
-  // Adjust textarea height automatically
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -483,13 +473,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   }, [inputText]);
 
-  // Voice dictation
   const handleToggleVoice = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Please use Google Chrome or Edge.');
+      alert('Speech recognition is not supported in this browser. Please use a supported browser.');
       return;
     }
 
@@ -520,7 +509,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
-  // Text to speech
   const handleToggleTTS = (msgId: string, text: string) => {
     if (!('speechSynthesis' in window)) return;
 
@@ -662,7 +650,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
       }
     }
 
-    // Check if HTML clipboard has an inline data:image
     if (imageFiles.length === 0) {
       const html = clipboardData.getData('text/html');
       if (html) {
@@ -696,10 +683,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   }, [processFileList]);
 
-  // Global window paste listener for instantaneous Ctrl+V anywhere in chat
   useEffect(() => {
     const handleGlobalPaste = (e: ClipboardEvent) => {
-      // Don't intercept if user is typing in another input element outside ChatView
+
       const target = e.target as HTMLElement;
       if (
         target &&
@@ -758,20 +744,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
         e.preventDefault();
         setDragOver(false);
 
-        // 1. Text drag and drop (mouse selected text dropped anywhere)
         const droppedText = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
         if (droppedText && (!e.dataTransfer.files || e.dataTransfer.files.length === 0)) {
           insertTextAtCursor(droppedText);
           return;
         }
 
-        // 2. File drag and drop
         if (e.dataTransfer.files?.length) {
           processFileList(e.dataTransfer.files);
         }
       }}
     >
-      {/* Background ambient lighting */}
+
       {isTemporaryChat ? (
         <div 
           className="pointer-events-none absolute inset-0 z-0 opacity-60 transition-opacity duration-500"
@@ -788,7 +772,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         />
       )}
 
-      {/* Hidden File Inputs */}
       <input
         type="file"
         ref={fileInputRef}
@@ -821,7 +804,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         className="hidden"
       />
 
-      {/* Drag overlay indicator */}
       {dragOver && (
         <div className="absolute inset-0 z-50 bg-[#131314]/90 backdrop-blur-sm border-2 border-dashed border-[#8ab4f8] flex flex-col items-center justify-center text-white">
           <Paperclip className="w-12 h-12 mb-3 text-[#8ab4f8] animate-bounce" />
@@ -830,7 +812,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
-      {/* Temporary Chat Active Top Banner (Shown during active conversation) */}
       {isTemporaryChat && !isInitialState && (
         <div className="z-20 bg-[#0c0c0e]/95 backdrop-blur-md border-b border-[#1c1c1e] px-4 py-2.5 flex items-center justify-between text-xs text-[#c4c7c5] shrink-0 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-2.5">
@@ -855,40 +836,37 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
-      {/* Main Messages Scroll Area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-6 relative z-10">
         {isInitialState ? (
           isTemporaryChat ? (
-            /* Gemini-style Temporary Chat Splash Screen (matching user reference screenshot) */
+
             <div className="max-w-2xl mx-auto min-h-[calc(100vh-250px)] flex flex-col items-center justify-center text-center py-10 px-4 animate-in fade-in zoom-in-95 duration-300">
-              {/* White Dashed Circle Speech Bubble Icon */}
+
               <div className="mb-4 inline-flex items-center justify-center p-2 rounded-full text-white">
                 <TemporaryChatIcon className="w-9 h-9" />
               </div>
 
-              {/* Title: Just stopping by? */}
               <h1 className="text-3xl sm:text-[38px] font-normal text-white mb-3 tracking-tight font-sans">
                 Just stopping by?
               </h1>
 
-              {/* Subtitle with dotted underline on key phrases */}
               <p className="text-xs sm:text-[13.5px] text-[#9aa0a6] max-w-lg mx-auto leading-relaxed mb-6 font-sans">
                 <span className="underline decoration-dotted underline-offset-4 cursor-default text-[#c4c7c5]">Temporary chats</span> don't appear in <span className="underline decoration-dotted underline-offset-4 cursor-default text-[#c4c7c5]">recent chats</span> and aren't used to improve AI. Stored for 72 hours for safety.
               </p>
             </div>
           ) : (
-            /* Minimalist Welcome Screen for Regular Chat */
+
             <div className="max-w-3xl mx-auto min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center py-10 px-4">
-              {/* Ring-like DNA structure logo */}
-              <div className="mb-5 flex justify-center">
-                <DnaRingLogo className="w-16 h-16" />
+
+              <div className="mb-5 relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-rose-500/20 rounded-full blur-xl opacity-75 group-hover:opacity-100 transition-opacity" />
+                <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" />
               </div>
 
               <h1 className="text-3xl sm:text-4xl font-normal text-[#e3e3e3] mb-8 tracking-tight font-sans">
                 Hello, what can I do for you?
               </h1>
 
-              {/* Quick Suggestion Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left">
                 {STARTER_PROMPTS.map((item, idx) => {
                   const Icon = item.icon;
@@ -915,14 +893,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )
         ) : (
-          /* Active Chat Thread */
+
           <div className="max-w-4xl mx-auto w-full py-8 space-y-8 px-2 sm:px-6">
             {messages.map((message) => {
               const isUser = message.role === 'user';
 
               return (
                 <div key={message.id} className="space-y-4">
-                  {/* User Message */}
+
                   {isUser ? (
                     <div className="flex justify-end">
                       <div className="max-w-[85%] sm:max-w-[78%] bg-[#242629] border border-[#333538] text-[#f1f3f4] rounded-2xl px-5 py-3.5 text-[15px] leading-relaxed shadow-sm">
@@ -943,15 +921,15 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       </div>
                     </div>
                   ) : (
-                    /* Omni Z Response */
+
                     <div className="flex gap-4 items-start">
-                      {/* Avatar */}
+
                       <div className="w-8 h-8 rounded-full bg-[#1e1f20] border border-[#2d2f33] flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                         <DnaRingLogo className="w-5 h-5" />
                       </div>
 
                       <div className="flex-1 space-y-4 min-w-0 pr-1">
-                        {/* Deep Reasoning & Chain-of-Thought (Visible when deep thinking is enabled) */}
+
                         {message.thinkingProcess && (() => {
                           const rawThought = message.thinkingProcess;
                           const hasPhases = /Phase\s*\d+|Step\s*\d+/i.test(rawThought);
@@ -973,7 +951,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                           return (
                             <div className="mb-4 rounded-2xl border border-purple-500/30 bg-gradient-to-b from-purple-950/25 to-[#1a1b1d] overflow-hidden text-xs shadow-lg">
-                              {/* Header bar */}
+
                               <div className="w-full px-4 py-2.5 flex items-center justify-between text-purple-300 bg-purple-950/40 border-b border-purple-500/20">
                                 <button
                                   onClick={() =>
@@ -1012,7 +990,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 </button>
                               </div>
 
-                              {/* Expanded Content with Structured Step Cards */}
                               {expandedThoughts[message.id] && (
                                 <div className="p-4 space-y-2.5 bg-black/40">
                                   {stepSections.length > 0 ? (
@@ -1043,12 +1020,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           );
                         })()}
 
-                        {/* Markdown Content */}
                         <div className="text-[15.5px] text-[#e3e3e3] leading-[1.8] font-normal tracking-[0.01em]">
                           <MarkdownRenderer content={message.content} />
                         </div>
 
-                        {/* Generated AI Images with On-Hover Download & Remix Overlay */}
                         {message.images && message.images.length > 0 && (
                           <div className="pt-2 space-y-3">
                             {message.images.map((imgUrl, imgIdx) => (
@@ -1065,12 +1040,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                   loading="lazy"
                                 />
 
-                                {/* Dark Gradient Scrim on Mouse Hover */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-                                {/* Floating Top-Right Controls on Hover */}
                                 <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 z-10">
-                                  {/* Remix AI button */}
+
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1083,7 +1056,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     <span>Remix</span>
                                   </button>
 
-                                  {/* Download button */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1106,7 +1078,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                     )}
                                   </button>
 
-                                  {/* Fullscreen button */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -1119,7 +1090,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                   </button>
                                 </div>
 
-                                {/* Floating Bottom Prompt Caption (Appears on Mouse Hover) */}
                                 <div className="absolute bottom-0 inset-x-0 p-3.5 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 z-10 flex items-center justify-between text-xs text-white pointer-events-none">
                                   <div className="flex items-center gap-2 truncate pr-2">
                                     <ImageIcon className="w-3.5 h-3.5 text-[#8ab4f8] shrink-0" />
@@ -1136,7 +1106,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           </div>
                         )}
 
-                        {/* Grounding Web Sources */}
                         {message.sources && message.sources.length > 0 && (
                           <div className="pt-3.5 border-t border-[#2d2f33]/60 space-y-2">
                             <div className="text-xs text-[#9aa0a6] font-medium flex items-center gap-1.5">
@@ -1169,7 +1138,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           </div>
                         )}
 
-                        {/* Action Toolbar */}
                         <div className="flex items-center gap-3 text-[#80868b] pt-3 mt-2 border-t border-[#2d2f33]/40">
                           <button
                             onClick={() => handleCopyMessage(message.id, message.content)}
@@ -1195,7 +1163,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                             )}
                           </button>
 
-                          {/* Retry button for transient error / service notices */}
                           {(message.content.includes('I encountered an issue') || message.content.includes('Service Notice')) && (
                             <button
                               onClick={() => {
@@ -1241,7 +1208,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
               );
             })}
 
-            {/* Thinking / Streaming Indicator */}
             {isLoading && (
               <div className="flex gap-4 items-start animate-in fade-in duration-200">
                 <div className="w-8 h-8 rounded-full bg-[#1e1f20] border border-[#2d2f33] flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
@@ -1287,13 +1253,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
         )}
       </div>
 
-      {/* Floating Input Dock at bottom */}
       <div className="p-4 bg-gradient-to-t from-[#131314] via-[#131314]/95 to-transparent relative z-20">
         <div className="max-w-4xl mx-auto space-y-2 px-2 sm:px-4">
-          {/* Multimodal File Preview & Vision Actions Deck */}
+
           {attachments.length > 0 && (
             <div className="p-3 rounded-2xl bg-[#1e1f20] border border-[#2d2f33] space-y-2.5 text-xs shadow-xl animate-in fade-in duration-200">
-              {/* Attachment preview cards */}
+
               <div className="flex flex-wrap gap-2">
                 {attachments.map((att) => {
                   const isImage = att.type?.startsWith('image/');
@@ -1330,7 +1295,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 })}
               </div>
 
-              {/* 6 Rich AI Vision Action Chips */}
               <div>
                 <div className="text-[11px] font-semibold text-[#8ab4f8] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <Eye className="w-3.5 h-3.5" /> Multimodal Vision Intelligence:
@@ -1403,10 +1367,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )}
 
-          {/* Comprehensive AI Image Studio & Aspect Ratio Suite */}
           {showImageStudio && (
             <div className="p-4 rounded-3xl bg-[#1e1f20] border border-[#3c4043] space-y-3.5 text-xs shadow-2xl animate-in fade-in slide-in-from-bottom-3 duration-200">
-              {/* Studio Header */}
+
               <div className="flex items-center justify-between pb-2 border-b border-[#2d2f33]">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-gradient-to-tr from-pink-500 to-purple-600 text-white">
@@ -1427,7 +1390,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </button>
               </div>
 
-              {/* Aspect Ratio Visual Cards */}
               <div>
                 <div className="text-[11px] font-semibold text-[#80868b] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Ratio className="w-3.5 h-3.5 text-[#8ab4f8]" /> 1. Select Aspect Ratio
@@ -1459,7 +1421,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </div>
               </div>
 
-              {/* Category Tabs: Style / Lighting / Camera */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-[11px] font-semibold text-[#80868b] uppercase tracking-wider flex items-center gap-1.5">
@@ -1482,7 +1443,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
                 </div>
 
-                {/* Preset Pills */}
                 <div className="flex flex-wrap gap-1.5">
                   {studioCategory === 'style' &&
                     [
@@ -1557,7 +1517,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </div>
               </div>
 
-              {/* Direct Studio Generation Bar */}
               <div className="pt-2 border-t border-[#2d2f33] flex items-center justify-between">
                 <div className="text-[11px] text-[#80868b]">
                   Ratio active: <span className="text-[#8ab4f8] font-mono font-semibold">{selectedAspectRatio}</span>
@@ -1578,7 +1537,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )}
 
-          {/* Pill Bar Form */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -1605,7 +1563,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             }}
             className="relative flex items-center bg-[#1e1f20] hover:bg-[#222427] focus-within:bg-[#222427] border border-[#2d2f33] focus-within:border-[#3c4043] rounded-full px-3 py-2 shadow-2xl transition-all"
           >
-            {/* Gemini-Style Plus / Attach Menu Component */}
+
             <div className="relative" ref={attachMenuRef}>
               <Tooltip content="Add files and tools" position="top" align="start">
                 <button
@@ -1626,12 +1584,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </button>
               </Tooltip>
 
-              {/* Gemini-Style Attachment Menu Popup (matches user reference image) */}
               {attachMenuOpen && (
                 <div className="absolute left-0 bottom-full mb-3.5 z-50 flex items-start animate-in fade-in zoom-in-95 duration-150">
-                  {/* Left Main Card */}
+
                   <div className="w-[230px] sm:w-[245px] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_16px_48px_rgba(0,0,0,0.85)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md">
-                    {/* Header: [X] Close and Title "Ask Omni Z" */}
+
                     <div className="flex items-center gap-2.5 px-3.5 py-1.5 mb-1 text-[#e3e3e3] font-medium border-b border-[#2d2f33]">
                       <button
                         type="button"
@@ -1647,7 +1604,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span className="text-[14px] font-medium tracking-tight">Ask Omni Z</span>
                     </div>
 
-                    {/* 1. Upload files */}
                     <button
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
@@ -1661,7 +1617,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span>Upload files</span>
                     </button>
 
-                    {/* 2. Add from Drive */}
                     <button
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
@@ -1675,7 +1630,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span>Add from Drive</span>
                     </button>
 
-                    {/* 3. More uploads > */}
                     <div
                       className="relative"
                       onMouseEnter={() => setActiveSubmenu('uploads')}
@@ -1701,10 +1655,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       </button>
                     </div>
 
-                    {/* Divider */}
                     <div className="my-1.5 border-t border-[#2d2f33]" />
 
-                    {/* 4. Create image */}
                     <button
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
@@ -1718,7 +1670,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span>Create image</span>
                     </button>
 
-                    {/* 5. Create video */}
                     <button
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
@@ -1732,7 +1683,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span>Create video</span>
                     </button>
 
-                    {/* 6. Create music */}
                     <button
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
@@ -1746,7 +1696,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span>Create music</span>
                     </button>
 
-                    {/* 7. Canvas */}
                     <button
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
@@ -1760,7 +1709,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span>Canvas</span>
                     </button>
 
-                    {/* 8. Deep Research */}
                     <button
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
@@ -1774,7 +1722,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span>Deep Research</span>
                     </button>
 
-                    {/* 9. More tools > */}
                     <div
                       className="relative"
                       onMouseEnter={() => setActiveSubmenu('tools')}
@@ -1801,7 +1748,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Submenu 1: More uploads flyout with sleek fluid animation */}
                   {activeSubmenu === 'uploads' && (
                     <div
                       onMouseEnter={() => setActiveSubmenu('uploads')}
@@ -1862,7 +1808,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     </div>
                   )}
 
-                  {/* Submenu 2: More tools flyout with sleek fluid animation */}
                   {activeSubmenu === 'tools' && (
                     <div
                       onMouseEnter={() => setActiveSubmenu('tools')}
@@ -1925,7 +1870,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
               )}
             </div>
 
-            {/* AI Image Studio Toggle button */}
             <Tooltip content="Image studio & ratios" position="top">
               <button
                 onClick={() => setShowImageStudio((prev) => !prev)}
@@ -1940,7 +1884,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
             </Tooltip>
 
-            {/* Auto-expanding Input Field with 'Ask Omni Z' placeholder and Drag-and-Drop / Clipboard Paste Support */}
             <textarea
               ref={textareaRef}
               rows={1}
@@ -1971,9 +1914,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
               className="flex-1 bg-transparent text-[#e3e3e3] placeholder-[#80868b] text-[15px] focus:outline-none resize-none py-1.5 px-2 max-h-40 leading-relaxed font-sans"
             />
 
-            {/* Right Action Icons */}
             <div className="flex items-center gap-1.5 shrink-0 ml-1">
-              {/* AI Prompt Enhancer Button (Appears when text is entered) */}
+
               {inputText.trim().length > 3 && (
                 <Tooltip content="Enhance prompt with AI" position="top">
                   <button
@@ -1991,7 +1933,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </Tooltip>
               )}
 
-              {/* Microphone dictation button */}
               <Tooltip content={isRecording ? 'Listening... click to stop' : 'Voice dictation'} position="top">
                 <button
                   type="button"
@@ -2007,7 +1948,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </button>
               </Tooltip>
 
-              {/* Model Intelligence Selector on Right Side */}
               <div className="relative" ref={modelDropdownRef}>
                 <Tooltip content="Select Model Intelligence" position="top" align="end">
                   <button
@@ -2038,7 +1978,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                 {modelDropdownOpen && (
                   <div className="absolute right-0 bottom-full mb-3.5 w-[340px] sm:w-[390px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_12px_40px_rgba(0,0,0,0.65)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    {/* Header */}
+
                     <div className="px-3 py-2 border-b border-[#2d2f33] flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <DnaRingLogo className="w-4 h-4" animate={false} />
@@ -2048,7 +1988,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Model Items */}
                     <div className="py-1 space-y-0.5">
                       {modelOptions.map((opt) => {
                         const Icon = opt.icon;
@@ -2095,10 +2034,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       })}
                     </div>
 
-                    {/* Divider separating models from thinking toggle */}
                     <div className="border-t border-[#3c4043] my-1" />
 
-                    {/* Omni Z Deep Think Toggle Row (below, turn on and off with Omni Z and Omni Z Pro) */}
                     <button
                       type="button"
                       onClick={() => {
@@ -2106,7 +2043,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         if (onToggleDeepThinking) {
                           onToggleDeepThinking(next);
                         }
-                        // If turning on while on a non-DeepThink-compatible model, default to Omni Z
+
                         if (next && selectedModel !== 'omni-z-flash' && selectedModel !== 'omni-z-autonomous-builder') {
                           if (onSelectModel) onSelectModel('omni-z-flash');
                         }
@@ -2154,7 +2091,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       </div>
                     </button>
 
-                    {/* Footer */}
                     <div className="px-3 py-1.5 border-t border-[#2d2f33] text-[11px] text-[#80868b] text-center">
                       Switch cognitive engines or toggle deep reasoning anytime.
                     </div>
@@ -2162,7 +2098,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 )}
               </div>
 
-              {/* Stop Generation Button when generating, or Send Button when prompt is present */}
               {isLoading ? (
                 <Tooltip content="Stop generating" position="top" align="end">
                   <button
@@ -2196,7 +2131,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       </div>
 
-      {/* Fullscreen Image Preview Modal */}
       {previewModalImage && (
         <div
           className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
@@ -2249,7 +2183,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
-      {/* Google Drive Import Modal */}
       {showDriveModal && (
         <div 
           className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
@@ -2259,7 +2192,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             className="w-full max-w-xl rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_24px_64px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
+
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#2d2f33]">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-[#282a2c] flex items-center justify-center border border-[#3c4043]">
@@ -2279,7 +2212,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
             </div>
 
-            {/* Search and Tabs */}
             <div className="px-5 pt-3 pb-2 border-b border-[#2d2f33] space-y-2.5">
               <div className="relative flex items-center bg-[#131314] rounded-xl px-3 py-2 border border-[#2d2f33]">
                 <Search className="w-4 h-4 text-[#80868b] mr-2 shrink-0" />
@@ -2322,7 +2254,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </div>
             </div>
 
-            {/* Drive Files List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[220px]">
               {sampleDriveFiles
                 .filter((f) => f.name.toLowerCase().includes(driveSearchQuery.toLowerCase()))
@@ -2365,9 +2296,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 ))}
             </div>
 
-            {/* Modal Footer */}
             <div className="px-5 py-3 border-t border-[#2d2f33] bg-[#18191b] flex items-center justify-between text-xs text-[#9aa0a6]">
-              <span>Connected via Google Drive</span>
+              <span>Connected via Cloud Drive</span>
               <button
                 type="button"
                 onClick={() => setShowDriveModal(false)}

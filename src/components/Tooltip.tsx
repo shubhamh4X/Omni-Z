@@ -42,7 +42,6 @@ export const Tooltip: React.FC<TooltipProps> = ({
     };
   }, []);
 
-  // Compute position and alignment classes
   let positionClasses = '';
   if (position === 'bottom') {
     if (align === 'start') {
