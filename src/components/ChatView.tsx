@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Plus, 
   Mic, 
@@ -152,6 +152,7 @@ interface ChatViewProps {
   deepThinkingEnabled?: boolean;
   onToggleDeepThinking?: (enabled: boolean) => void;
   onClearChat?: () => void;
+  onStopGeneration?: () => void;
 }
 
 const STARTER_PROMPTS = [
@@ -192,6 +193,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onSelectModel,
   deepThinkingEnabled = false,
   onToggleDeepThinking,
+  onStopGeneration,
 }) => {
   const [inputText, setInputText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -580,21 +582,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }, 10);
   };
 
-  const processFileList = (files: FileList | File[]) => {
+  const processFileList = useCallback((files: FileList | File[]) => {
     Array.from(files).forEach((file) => {
+      const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(file.name);
       const reader = new FileReader();
-      if (file.type.startsWith('image/')) {
+      if (isImg) {
         reader.onload = (ev) => {
-          setAttachments((prev) => [
-            ...prev,
-            {
-              id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              dataUrl: ev.target?.result as string,
-            },
-          ]);
+          const res = ev.target?.result as string;
+          if (res) {
+            setAttachments((prev) => [
+              ...prev,
+              {
+                id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                name: file.name && file.name !== 'image.png' && file.name !== 'blob'
+                  ? file.name
+                  : `pasted_image_${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.png`,
+                type: file.type || 'image/png',
+                size: file.size || Math.round(res.length * 0.75),
+                dataUrl: res,
+              },
+            ]);
+          }
         };
         reader.readAsDataURL(file);
       } else {
@@ -613,7 +621,93 @@ export const ChatView: React.FC<ChatViewProps> = ({
         reader.readAsText(file);
       }
     });
-  };
+  }, []);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent | ClipboardEvent) => {
+    const clipboardData = (e as React.ClipboardEvent).clipboardData || (e as ClipboardEvent).clipboardData;
+    if (!clipboardData) return;
+
+    const items = clipboardData.items;
+    const imageFiles: File[] = [];
+
+    if (items && items.length > 0) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          const blob = item.getAsFile();
+          if (blob) {
+            const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+            const fileName = blob.name && blob.name !== 'image.png' && blob.name !== 'blob'
+              ? blob.name
+              : `pasted_image_${Date.now()}.${ext}`;
+            const file = new File([blob], fileName, { type: blob.type || 'image/png' });
+            imageFiles.push(file);
+          }
+        }
+      }
+    }
+
+    if (imageFiles.length === 0 && clipboardData.files && clipboardData.files.length > 0) {
+      for (let i = 0; i < clipboardData.files.length; i++) {
+        const file = clipboardData.files[i];
+        if (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(file.name)) {
+          imageFiles.push(file);
+        }
+      }
+    }
+
+    // Check if HTML clipboard has an inline data:image
+    if (imageFiles.length === 0) {
+      const html = clipboardData.getData('text/html');
+      if (html) {
+        const match = html.match(/<img[^>]+src=["'](data:image\/[^"']+)["']/i);
+        if (match && match[1]) {
+          const src = match[1];
+          const mime = src.substring(5, src.indexOf(';'));
+          setAttachments((prev) => [
+            ...prev,
+            {
+              id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+              name: `pasted_image_${Date.now()}.png`,
+              type: mime || 'image/png',
+              size: Math.round(src.length * 0.75),
+              dataUrl: src,
+            },
+          ]);
+          e.preventDefault();
+          e.stopPropagation();
+          textareaRef.current?.focus();
+          return;
+        }
+      }
+    }
+
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      e.stopPropagation();
+      processFileList(imageFiles);
+      textareaRef.current?.focus();
+    }
+  }, [processFileList]);
+
+  // Global window paste listener for instantaneous Ctrl+V anywhere in chat
+  useEffect(() => {
+    const handleGlobalPaste = (e: ClipboardEvent) => {
+      // Don't intercept if user is typing in another input element outside ChatView
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        target !== textareaRef.current &&
+        (target.tagName === 'INPUT' || (target.tagName === 'TEXTAREA' && target !== textareaRef.current))
+      ) {
+        return;
+      }
+      handlePaste(e);
+    };
+
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, [handlePaste]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -645,6 +739,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   return (
     <div
       className="flex-1 flex flex-col h-[calc(100vh-56px)] relative overflow-hidden bg-[#131314]"
+      onPaste={handlePaste}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
@@ -729,12 +824,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" />
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-normal text-[#e3e3e3] mb-3 tracking-tight font-sans">
+            <h1 className="text-3xl sm:text-4xl font-normal text-[#e3e3e3] mb-8 tracking-tight font-sans">
               Hello, what can I do for you?
             </h1>
-            <p className="text-[#9aa0a6] text-sm sm:text-base max-w-md mb-8 leading-relaxed">
-              Your universal AI agent with live Google Search, backend Python execution, and multimodal intelligence.
-            </p>
 
             {/* Quick Suggestion Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left">
@@ -1116,7 +1208,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     <div className="text-[14px] text-[#9aa0a6] flex items-center gap-2.5 py-1">
                       <div className="w-2.5 h-2.5 rounded-full bg-[#8ab4f8] animate-ping" />
                       <span className="font-normal">
-                        {enableSearch ? 'Omni Z is browsing the live web and synthesizing facts...' : 'Omni Z is generating response...'}
+                        {(() => {
+                          const lastUserText = messages.filter((m) => m.role === 'user').slice(-1)[0]?.content || '';
+                          const isCasualGreetingMsg = /^(hey+|hi+|hello+|howdy|hola|greetings|good\s*(morning|afternoon|evening|night)|what'?s\s*up|sup|yo|how\s*are\s*you|who\s*are\s*you|help|test|ping)[.!?\s]*$/i.test(lastUserText.trim());
+                          const isBrowsingLiveWeb = enableSearch && !isCasualGreetingMsg && /search|news|latest|today|current|price|weather|who is|what is|when did|source|article|website|stock|live|202[4-9]/i.test(lastUserText);
+                          return isBrowsingLiveWeb ? 'Omni Z is browsing the live web and synthesizing facts...' : 'Omni Z is generating response...';
+                        })()}
                       </span>
                     </div>
                   )}
@@ -1778,13 +1875,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <ImageIcon className="w-4 h-4" />
             </button>
 
-            {/* Auto-expanding Input Field with 'Ask Omni Z' placeholder and Drag-and-Drop Text Support */}
+            {/* Auto-expanding Input Field with 'Ask Omni Z' placeholder and Drag-and-Drop / Clipboard Paste Support */}
             <textarea
               ref={textareaRef}
               rows={1}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
@@ -1993,17 +2091,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 )}
               </div>
 
-              {/* Enter / Send Up Arrow Button (Appears immediately when user types or adds attachments) */}
-              {(inputText.trim().length > 0 || attachments.length > 0) && (
+              {/* Stop Generation Button when generating, or Send Button when prompt is present */}
+              {isLoading ? (
                 <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-8 h-8 rounded-full bg-white hover:bg-[#e8eaed] active:scale-90 text-[#131314] flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-[#8ab4f8] animate-in zoom-in-75 fade-in"
-                  title="Send message (Enter)"
-                  aria-label="Send message"
+                  type="button"
+                  onClick={onStopGeneration}
+                  className="w-8 h-8 rounded-full bg-[#1d4ed8] hover:bg-[#1e40af] active:scale-90 text-white flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-blue-400 animate-in zoom-in-75 fade-in"
+                  title="Stop generating"
+                  aria-label="Stop generating"
                 >
-                  <ArrowUp className="w-4 h-4 stroke-[2.75]" />
+                  <Square className="w-3.5 h-3.5 fill-white text-white rounded-xs" />
                 </button>
+              ) : (
+                (inputText.trim().length > 0 || attachments.length > 0) && (
+                  <button
+                    type="submit"
+                    className="w-8 h-8 rounded-full bg-white hover:bg-[#e8eaed] active:scale-90 text-[#131314] flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-[#8ab4f8] animate-in zoom-in-75 fade-in"
+                    title="Send message (Enter)"
+                    aria-label="Send message"
+                  >
+                    <ArrowUp className="w-4 h-4 stroke-[2.75]" />
+                  </button>
+                )
               )}
             </div>
           </form>

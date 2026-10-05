@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar, cleanTitle } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ChatView } from './components/ChatView';
@@ -38,6 +38,15 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentView, setCurrentView] = useState<'chat' | 'arena'>('chat');
   const { user } = useAuth();
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+  };
 
   // Multi-session chat management
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
@@ -386,6 +395,10 @@ export default function App() {
       setActiveSessionId(targetSessionId);
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
     setIsLoading(true);
 
     try {
@@ -394,6 +407,7 @@ export default function App() {
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           message: text,
           history: updatedMessages.slice(-8).map((m) => ({
@@ -407,6 +421,7 @@ export default function App() {
           allAiSynergy: true,
           cognitiveMode: selectedModel,
           imageAspectRatio: extraOptions?.imageAspectRatio || '1:1',
+          userName: user?.displayName ? user.displayName.split(' ')[0] : undefined,
         }),
       });
 
@@ -437,7 +452,6 @@ export default function App() {
         imagePrompt: data.imagePrompt || undefined,
         thinkingProcess: data.thinkingProcess || undefined,
         autoSavedMemory: data.autoSavedMemory || null,
-        multiLlmConsensus: data.multiLlmConsensus || undefined,
       };
 
       setSessions((prev) =>
@@ -452,6 +466,10 @@ export default function App() {
         )
       );
     } catch (err: any) {
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('AbortError')) {
+        // Generation was stopped by user
+        return;
+      }
       console.error('Chat error:', err);
       const errorMessage: ChatMessage = {
         id: `msg_${Date.now()}_err`,
@@ -473,6 +491,7 @@ export default function App() {
       );
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -658,6 +677,7 @@ export default function App() {
             deepThinkingEnabled={deepThinkingEnabled}
             onToggleDeepThinking={setDeepThinkingEnabled}
             onClearChat={handleClearCurrentChat}
+            onStopGeneration={handleStopGeneration}
           />
         )}
       </div>

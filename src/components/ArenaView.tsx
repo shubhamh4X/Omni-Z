@@ -18,7 +18,8 @@ import {
   Check, 
   Play,
   RotateCcw,
-  Dna
+  Dna,
+  X
 } from 'lucide-react';
 import { ArenaComparison, ArenaResponse } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
