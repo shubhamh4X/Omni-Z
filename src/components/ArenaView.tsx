@@ -304,9 +304,8 @@ export const ArenaView: React.FC<ArenaViewProps> = ({
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-8">
         {battles.length === 0 && !isLoading && (
           <div className="max-w-2xl mx-auto text-center py-12 space-y-6">
-            <div className="relative inline-block">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-rose-500/20 rounded-full blur-xl opacity-75" />
-              <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" />
+            <div className="flex justify-center">
+              <DnaRingLogo className="w-16 h-16" />
             </div>
 
             <div>

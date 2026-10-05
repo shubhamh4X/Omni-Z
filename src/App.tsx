@@ -87,6 +87,41 @@ export default function App() {
     return INITIAL_SESSION_ID;
   });
 
+  // Temporary Chat Feature State (Incognito / Non-persisted session)
+  const [isTemporaryChat, setIsTemporaryChat] = useState<boolean>(false);
+  const [temporarySession, setTemporarySession] = useState<ChatSession>({
+    id: 'temporary_chat_session',
+    title: 'Temporary chat',
+    messages: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+
+  const handleToggleTemporaryChat = () => {
+    setIsTemporaryChat((prev) => {
+      const nextState = !prev;
+      setTemporarySession({
+        id: `temp_${Date.now()}`,
+        title: 'Temporary chat',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      return nextState;
+    });
+  };
+
+  const handleTurnOffTemporaryChat = () => {
+    setTemporarySession({
+      id: `temp_${Date.now()}`,
+      title: 'Temporary chat',
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    setIsTemporaryChat(false);
+  };
+
   // Sync sessions to localStorage
   useEffect(() => {
     try {
@@ -215,22 +250,34 @@ export default function App() {
   }, [sessions, user]);
 
   // Current session with guaranteed fallback
-  const currentSession = sessions.find((s) => s.id === activeSessionId) || sessions[0] || {
-    id: INITIAL_SESSION_ID,
-    title: 'New conversation',
-    messages: [],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
+  const currentSession = isTemporaryChat
+    ? temporarySession
+    : sessions.find((s) => s.id === activeSessionId) || sessions[0] || {
+        id: INITIAL_SESSION_ID,
+        title: 'New conversation',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
 
-  // Sync activeSessionId if currentSession changed
+  // Sync activeSessionId if currentSession changed (only for regular sessions)
   useEffect(() => {
-    if (currentSession && activeSessionId !== currentSession.id) {
+    if (!isTemporaryChat && currentSession && activeSessionId !== currentSession.id) {
       setActiveSessionId(currentSession.id);
     }
-  }, [currentSession, activeSessionId]);
+  }, [currentSession, activeSessionId, isTemporaryChat]);
 
   const handleNewChat = () => {
+    if (isTemporaryChat) {
+      setTemporarySession({
+        id: `temp_${Date.now()}`,
+        title: 'Temporary chat',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      return;
+    }
     // If current session is already an empty new conversation, remain on it
     if (currentSession && currentSession.messages.length === 0) {
       return;
@@ -318,6 +365,17 @@ export default function App() {
   };
 
   const handleClearCurrentChat = async () => {
+    if (isTemporaryChat) {
+      setTemporarySession({
+        id: `temp_${Date.now()}`,
+        title: 'Temporary chat',
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      return;
+    }
+
     const targetId = activeSessionId;
     if (user && !user.isGuest) {
       try {
@@ -365,34 +423,42 @@ export default function App() {
     // Append user message immediately
     const updatedMessages = [...currentMessages, userMessage];
 
-    setSessions((prev) => {
-      const exists = prev.some((s) => s.id === targetSessionId);
-      if (!exists) {
-        return [
-          {
-            id: targetSessionId,
-            title: newTitle,
-            messages: updatedMessages,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          },
-          ...prev,
-        ];
-      }
-      return prev.map((s) =>
-        s.id === targetSessionId
-          ? {
-              ...s,
+    if (isTemporaryChat) {
+      setTemporarySession((prev) => ({
+        ...prev,
+        messages: updatedMessages,
+        updatedAt: Date.now(),
+      }));
+    } else {
+      setSessions((prev) => {
+        const exists = prev.some((s) => s.id === targetSessionId);
+        if (!exists) {
+          return [
+            {
+              id: targetSessionId,
               title: newTitle,
               messages: updatedMessages,
+              createdAt: Date.now(),
               updatedAt: Date.now(),
-            }
-          : s
-      );
-    });
+            },
+            ...prev,
+          ];
+        }
+        return prev.map((s) =>
+          s.id === targetSessionId
+            ? {
+                ...s,
+                title: newTitle,
+                messages: updatedMessages,
+                updatedAt: Date.now(),
+              }
+            : s
+        );
+      });
 
-    if (activeSessionId !== targetSessionId) {
-      setActiveSessionId(targetSessionId);
+      if (activeSessionId !== targetSessionId) {
+        setActiveSessionId(targetSessionId);
+      }
     }
 
     if (abortControllerRef.current) {
@@ -416,7 +482,7 @@ export default function App() {
           })),
           attachments,
           enableSearch,
-          enableMemory: true,
+          enableMemory: !isTemporaryChat,
           deepThinking: (deepThinkingEnabled && (selectedModel === 'omni-z-flash' || selectedModel === 'omni-z-autonomous-builder')) || selectedModel === 'omni-z-think',
           allAiSynergy: true,
           cognitiveMode: selectedModel,
@@ -454,17 +520,25 @@ export default function App() {
         autoSavedMemory: data.autoSavedMemory || null,
       };
 
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === targetSessionId
-            ? {
-                ...s,
-                messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), assistantMessage],
-                updatedAt: Date.now(),
-              }
-            : s
-        )
-      );
+      if (isTemporaryChat) {
+        setTemporarySession((prev) => ({
+          ...prev,
+          messages: [...prev.messages, assistantMessage],
+          updatedAt: Date.now(),
+        }));
+      } else {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === targetSessionId
+              ? {
+                  ...s,
+                  messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), assistantMessage],
+                  updatedAt: Date.now(),
+                }
+              : s
+          )
+        );
+      }
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('AbortError')) {
         // Generation was stopped by user
@@ -478,17 +552,25 @@ export default function App() {
         timestamp: Date.now(),
       };
 
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === targetSessionId
-            ? {
-                ...s,
-                messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), errorMessage],
-                updatedAt: Date.now(),
-              }
-            : s
-        )
-      );
+      if (isTemporaryChat) {
+        setTemporarySession((prev) => ({
+          ...prev,
+          messages: [...prev.messages, errorMessage],
+          updatedAt: Date.now(),
+        }));
+      } else {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === targetSessionId
+              ? {
+                  ...s,
+                  messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), errorMessage],
+                  updatedAt: Date.now(),
+                }
+              : s
+          )
+        );
+      }
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
@@ -626,21 +708,38 @@ export default function App() {
       <Sidebar
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(!sidebarOpen)}
+        onClose={() => setSidebarOpen(false)}
+        onOpen={() => setSidebarOpen(true)}
         sessions={sessions}
         activeSessionId={activeSessionId}
         onSelectSession={(id) => {
+          if (isTemporaryChat) {
+            setIsTemporaryChat(false);
+          }
           setActiveSessionId(id);
           setCurrentView('chat');
+          if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setSidebarOpen(false);
+          }
         }}
         onNewChat={() => {
           handleNewChat();
           setCurrentView('chat');
+          if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setSidebarOpen(false);
+          }
         }}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
         onSelectPrompt={(prompt) => {
+          if (isTemporaryChat) {
+            setIsTemporaryChat(false);
+          }
           handleSelectPrompt(prompt);
           setCurrentView('chat');
+          if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setSidebarOpen(false);
+          }
         }}
       />
 
@@ -656,6 +755,8 @@ export default function App() {
           setEnableSearch={setEnableSearch}
           onClearChat={handleClearCurrentChat}
           hasMessages={currentSession.messages.length > 0}
+          isTemporaryChat={isTemporaryChat}
+          onToggleTemporaryChat={handleToggleTemporaryChat}
         />
 
         {/* View Routing: Dual Model Compare vs Chat View */}
@@ -666,7 +767,7 @@ export default function App() {
           />
         ) : (
           <ChatView
-            key={currentSession.id}
+            key={isTemporaryChat ? 'temporary_chat_mode' : currentSession.id}
             sessionId={currentSession.id}
             messages={currentSession.messages}
             onSendMessage={handleSendMessage}
@@ -678,6 +779,8 @@ export default function App() {
             onToggleDeepThinking={setDeepThinkingEnabled}
             onClearChat={handleClearCurrentChat}
             onStopGeneration={handleStopGeneration}
+            isTemporaryChat={isTemporaryChat}
+            onTurnOffTemporaryChat={handleTurnOffTemporaryChat}
           />
         )}
       </div>

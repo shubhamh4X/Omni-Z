@@ -55,6 +55,8 @@ import {
 import { ChatMessage, Attachment } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { DnaRingLogo } from './DnaRingLogo';
+import { TemporaryChatIcon } from './TemporaryChatButton';
+import { Tooltip } from './Tooltip';
 
 // Pixel-perfect SVG icons matching Google Gemini design
 const GoogleDriveOutlineIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
@@ -153,6 +155,8 @@ interface ChatViewProps {
   onToggleDeepThinking?: (enabled: boolean) => void;
   onClearChat?: () => void;
   onStopGeneration?: () => void;
+  isTemporaryChat?: boolean;
+  onTurnOffTemporaryChat?: () => void;
 }
 
 const STARTER_PROMPTS = [
@@ -194,6 +198,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   deepThinkingEnabled = false,
   onToggleDeepThinking,
   onStopGeneration,
+  isTemporaryChat = false,
+  onTurnOffTemporaryChat,
 }) => {
   const [inputText, setInputText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -738,7 +744,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   return (
     <div
-      className="flex-1 flex flex-col h-[calc(100vh-56px)] relative overflow-hidden bg-[#131314]"
+      className={`flex-1 flex flex-col h-[calc(100vh-56px)] relative overflow-hidden transition-colors duration-500 ease-in-out ${
+        isTemporaryChat ? 'bg-[#000000]' : 'bg-[#131314]'
+      }`}
       onPaste={handlePaste}
       onDragOver={(e) => {
         e.preventDefault();
@@ -763,13 +771,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }
       }}
     >
-      {/* Subtle radial glow background */}
-      <div 
-        className="pointer-events-none absolute inset-0 z-0 opacity-40"
-        style={{
-          background: 'radial-gradient(ellipse 60% 50% at 50% 40%, rgba(74, 137, 243, 0.18) 0%, rgba(197, 138, 249, 0.10) 40%, rgba(19, 19, 20, 0) 80%)'
-        }}
-      />
+      {/* Background ambient lighting */}
+      {isTemporaryChat ? (
+        <div 
+          className="pointer-events-none absolute inset-0 z-0 opacity-60 transition-opacity duration-500"
+          style={{
+            background: 'radial-gradient(circle 700px at 50% 35%, rgba(35, 35, 40, 0.4) 0%, rgba(12, 12, 14, 0.8) 50%, rgba(0, 0, 0, 1) 100%)'
+          }}
+        />
+      ) : (
+        <div 
+          className="pointer-events-none absolute inset-0 z-0 opacity-40 transition-opacity duration-500"
+          style={{
+            background: 'radial-gradient(ellipse 60% 50% at 50% 40%, rgba(74, 137, 243, 0.18) 0%, rgba(197, 138, 249, 0.10) 40%, rgba(19, 19, 20, 0) 80%)'
+          }}
+        />
+      )}
 
       {/* Hidden File Inputs */}
       <input
@@ -813,46 +830,90 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
+      {/* Temporary Chat Active Top Banner (Shown during active conversation) */}
+      {isTemporaryChat && !isInitialState && (
+        <div className="z-20 bg-[#0c0c0e]/95 backdrop-blur-md border-b border-[#1c1c1e] px-4 py-2.5 flex items-center justify-between text-xs text-[#c4c7c5] shrink-0 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1 rounded-md bg-white/10 text-white">
+              <TemporaryChatIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-semibold text-white mr-1.5">Temporary Chat</span>
+              <span className="text-[#80868b] hidden sm:inline">
+                — Conversations aren't saved to history, don't use memories, and clear when you exit.
+              </span>
+            </div>
+          </div>
+          {onTurnOffTemporaryChat && (
+            <button
+              onClick={onTurnOffTemporaryChat}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium text-[#8ab4f8] hover:bg-white/10 hover:text-white transition-colors cursor-pointer shrink-0"
+            >
+              Turn off
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Main Messages Scroll Area */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-6 relative z-10">
         {isInitialState ? (
-          /* Minimalist Welcome Screen */
-          <div className="max-w-3xl mx-auto min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center py-10 px-4">
-            {/* Ring-like DNA structure logo */}
-            <div className="mb-5 relative group">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-rose-500/20 rounded-full blur-xl opacity-75 group-hover:opacity-100 transition-opacity" />
-              <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" />
-            </div>
+          isTemporaryChat ? (
+            /* Gemini-style Temporary Chat Splash Screen (matching user reference screenshot) */
+            <div className="max-w-2xl mx-auto min-h-[calc(100vh-250px)] flex flex-col items-center justify-center text-center py-10 px-4 animate-in fade-in zoom-in-95 duration-300">
+              {/* White Dashed Circle Speech Bubble Icon */}
+              <div className="mb-4 inline-flex items-center justify-center p-2 rounded-full text-white">
+                <TemporaryChatIcon className="w-9 h-9" />
+              </div>
 
-            <h1 className="text-3xl sm:text-4xl font-normal text-[#e3e3e3] mb-8 tracking-tight font-sans">
-              Hello, what can I do for you?
-            </h1>
+              {/* Title: Just stopping by? */}
+              <h1 className="text-3xl sm:text-[38px] font-normal text-white mb-3 tracking-tight font-sans">
+                Just stopping by?
+              </h1>
 
-            {/* Quick Suggestion Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left">
-              {STARTER_PROMPTS.map((item, idx) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setInputText(item.prompt);
-                      textareaRef.current?.focus();
-                    }}
-                    className="p-4 rounded-2xl bg-[#1e1f20] hover:bg-[#282a2c] border border-[#2d2f33] hover:border-[#3c4043] transition-all cursor-pointer group text-left shadow-xs"
-                  >
-                    <div className="flex items-center gap-2 text-xs font-semibold text-[#8ab4f8] mb-1.5">
-                      <Icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </div>
-                    <div className="text-xs text-[#c4c7c5] group-hover:text-white line-clamp-2 leading-relaxed">
-                      {item.prompt}
-                    </div>
-                  </button>
-                );
-              })}
+              {/* Subtitle with dotted underline on key phrases */}
+              <p className="text-xs sm:text-[13.5px] text-[#9aa0a6] max-w-lg mx-auto leading-relaxed mb-6 font-sans">
+                <span className="underline decoration-dotted underline-offset-4 cursor-default text-[#c4c7c5]">Temporary chats</span> don't appear in <span className="underline decoration-dotted underline-offset-4 cursor-default text-[#c4c7c5]">recent chats</span> and aren't used to improve AI. Stored for 72 hours for safety.
+              </p>
             </div>
-          </div>
+          ) : (
+            /* Minimalist Welcome Screen for Regular Chat */
+            <div className="max-w-3xl mx-auto min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center py-10 px-4">
+              {/* Ring-like DNA structure logo */}
+              <div className="mb-5 flex justify-center">
+                <DnaRingLogo className="w-16 h-16" />
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl font-normal text-[#e3e3e3] mb-8 tracking-tight font-sans">
+                Hello, what can I do for you?
+              </h1>
+
+              {/* Quick Suggestion Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left">
+                {STARTER_PROMPTS.map((item, idx) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setInputText(item.prompt);
+                        textareaRef.current?.focus();
+                      }}
+                      className="p-4 rounded-2xl bg-[#1e1f20] hover:bg-[#282a2c] border border-[#2d2f33] hover:border-[#3c4043] transition-all cursor-pointer group text-left shadow-xs"
+                    >
+                      <div className="flex items-center gap-2 text-xs font-semibold text-[#8ab4f8] mb-1.5">
+                        <Icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </div>
+                      <div className="text-xs text-[#c4c7c5] group-hover:text-white line-clamp-2 leading-relaxed">
+                        {item.prompt}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )
         ) : (
           /* Active Chat Thread */
           <div className="max-w-4xl mx-auto w-full py-8 space-y-8 px-2 sm:px-6">
@@ -1546,22 +1607,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
           >
             {/* Gemini-Style Plus / Attach Menu Component */}
             <div className="relative" ref={attachMenuRef}>
-              <button
-                type="button"
-                onClick={() => {
-                  setAttachMenuOpen(!attachMenuOpen);
-                  setActiveSubmenu(null);
-                }}
-                className={`p-2 rounded-full transition-all duration-200 cursor-pointer mr-0.5 shrink-0 ${
-                  attachMenuOpen
-                    ? 'bg-[#2d2f33] text-white rotate-45'
-                    : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
-                }`}
-                title="Add to prompt / attach files & tools"
-                aria-expanded={attachMenuOpen}
-              >
-                <Plus className="w-5 h-5" />
-              </button>
+              <Tooltip content="Add files and tools" position="top" align="start">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttachMenuOpen(!attachMenuOpen);
+                    setActiveSubmenu(null);
+                  }}
+                  className={`p-2 rounded-full transition-all duration-200 cursor-pointer mr-0.5 shrink-0 ${
+                    attachMenuOpen
+                      ? 'bg-[#2d2f33] text-white rotate-45'
+                      : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
+                  }`}
+                  aria-label="Add to prompt / attach files & tools"
+                  aria-expanded={attachMenuOpen}
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </Tooltip>
 
               {/* Gemini-Style Attachment Menu Popup (matches user reference image) */}
               {attachMenuOpen && (
@@ -1863,17 +1926,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             {/* AI Image Studio Toggle button */}
-            <button
-              onClick={() => setShowImageStudio((prev) => !prev)}
-              className={`p-1.5 rounded-full transition-colors cursor-pointer mr-1 shrink-0 ${
-                showImageStudio
-                  ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]'
-                  : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
-              }`}
-              title="Toggle AI Image Studio & Aspect Ratios"
-            >
-              <ImageIcon className="w-4 h-4" />
-            </button>
+            <Tooltip content="Image studio & ratios" position="top">
+              <button
+                onClick={() => setShowImageStudio((prev) => !prev)}
+                className={`p-1.5 rounded-full transition-colors cursor-pointer mr-1 shrink-0 ${
+                  showImageStudio
+                    ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]'
+                    : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
+                }`}
+                aria-label="Toggle AI Image Studio & Aspect Ratios"
+              >
+                <ImageIcon className="w-4 h-4" />
+              </button>
+            </Tooltip>
 
             {/* Auto-expanding Input Field with 'Ask Omni Z' placeholder and Drag-and-Drop / Clipboard Paste Support */}
             <textarea
@@ -1910,60 +1975,66 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <div className="flex items-center gap-1.5 shrink-0 ml-1">
               {/* AI Prompt Enhancer Button (Appears when text is entered) */}
               {inputText.trim().length > 3 && (
-                <button
-                  type="button"
-                  onClick={handleEnhancePrompt}
-                  disabled={isEnhancingPrompt}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600/30 to-blue-600/30 hover:from-purple-600/50 hover:to-blue-600/50 border border-purple-500/30 text-purple-200 hover:text-white text-xs transition-all cursor-pointer shadow-xs active:scale-95"
-                  title="Enhance prompt with AI"
-                >
-                  <Wand2 className={`w-3.5 h-3.5 text-purple-300 ${isEnhancingPrompt ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline font-medium">
-                    {isEnhancingPrompt ? 'Enhancing...' : 'Enhance'}
-                  </span>
-                </button>
+                <Tooltip content="Enhance prompt with AI" position="top">
+                  <button
+                    type="button"
+                    onClick={handleEnhancePrompt}
+                    disabled={isEnhancingPrompt}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600/30 to-blue-600/30 hover:from-purple-600/50 hover:to-blue-600/50 border border-purple-500/30 text-purple-200 hover:text-white text-xs transition-all cursor-pointer shadow-xs active:scale-95"
+                    aria-label="Enhance prompt with AI"
+                  >
+                    <Wand2 className={`w-3.5 h-3.5 text-purple-300 ${isEnhancingPrompt ? 'animate-spin' : ''}`} />
+                    <span className="hidden sm:inline font-medium">
+                      {isEnhancingPrompt ? 'Enhancing...' : 'Enhance'}
+                    </span>
+                  </button>
+                </Tooltip>
               )}
 
               {/* Microphone dictation button */}
-              <button
-                type="button"
-                onClick={handleToggleVoice}
-                className={`p-2 rounded-full transition-colors cursor-pointer ${
-                  isRecording
-                    ? 'bg-red-500/20 text-red-400 animate-pulse'
-                    : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
-                }`}
-                title={isRecording ? 'Listening... click to stop' : 'Voice dictation'}
-              >
-                {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              </button>
+              <Tooltip content={isRecording ? 'Listening... click to stop' : 'Voice dictation'} position="top">
+                <button
+                  type="button"
+                  onClick={handleToggleVoice}
+                  className={`p-2 rounded-full transition-colors cursor-pointer ${
+                    isRecording
+                      ? 'bg-red-500/20 text-red-400 animate-pulse'
+                      : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
+                  }`}
+                  aria-label={isRecording ? 'Listening... click to stop' : 'Voice dictation'}
+                >
+                  {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+              </Tooltip>
 
               {/* Model Intelligence Selector on Right Side */}
               <div className="relative" ref={modelDropdownRef}>
-                <button
-                  type="button"
-                  onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#282a2c] text-xs font-medium transition-colors cursor-pointer ${
-                    isDeepThinkingActive
-                      ? 'border border-purple-500/50 bg-[#1e1528] text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.18)]'
-                      : 'border border-[#2d2f33] bg-[#18191b] text-[#e3e3e3]'
-                  }`}
-                  title="Select Model Intelligence"
-                  aria-expanded={modelDropdownOpen}
-                >
-                  <span className={`w-2 h-2 rounded-full ${
-                    isDeepThinkingActive ? 'bg-purple-400 animate-pulse' : (currentModel.dotColor || 'bg-[#8ab4f8]')
-                  }`}></span>
-                  <span className="hidden sm:inline text-xs">
-                    {currentModel.name}
-                    {isDeepThinkingActive && <span className="ml-1 text-purple-300 font-normal">+ Deep Think</span>}
-                  </span>
-                  <span className="sm:hidden text-xs">
-                    {currentModel.shortName || 'Model'}
-                    {isDeepThinkingActive && <span className="ml-0.5 text-purple-300">+ Think</span>}
-                  </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-[#80868b] transition-transform duration-200 ${modelDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
+                <Tooltip content="Select Model Intelligence" position="top" align="end">
+                  <button
+                    type="button"
+                    onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#282a2c] text-xs font-medium transition-colors cursor-pointer ${
+                      isDeepThinkingActive
+                        ? 'border border-purple-500/50 bg-[#1e1528] text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.18)]'
+                        : 'border border-[#2d2f33] bg-[#18191b] text-[#e3e3e3]'
+                    }`}
+                    aria-label="Select Model Intelligence"
+                    aria-expanded={modelDropdownOpen}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${
+                      isDeepThinkingActive ? 'bg-purple-400 animate-pulse' : (currentModel.dotColor || 'bg-[#8ab4f8]')
+                    }`}></span>
+                    <span className="hidden sm:inline text-xs">
+                      {currentModel.name}
+                      {isDeepThinkingActive && <span className="ml-1 text-purple-300 font-normal">+ Deep Think</span>}
+                    </span>
+                    <span className="sm:hidden text-xs">
+                      {currentModel.shortName || 'Model'}
+                      {isDeepThinkingActive && <span className="ml-0.5 text-purple-300">+ Think</span>}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-[#80868b] transition-transform duration-200 ${modelDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </Tooltip>
 
                 {modelDropdownOpen && (
                   <div className="absolute right-0 bottom-full mb-3.5 w-[340px] sm:w-[390px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_12px_40px_rgba(0,0,0,0.65)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
@@ -2093,25 +2164,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
               {/* Stop Generation Button when generating, or Send Button when prompt is present */}
               {isLoading ? (
-                <button
-                  type="button"
-                  onClick={onStopGeneration}
-                  className="w-8 h-8 rounded-full bg-[#1d4ed8] hover:bg-[#1e40af] active:scale-90 text-white flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-blue-400 animate-in zoom-in-75 fade-in"
-                  title="Stop generating"
-                  aria-label="Stop generating"
-                >
-                  <Square className="w-3.5 h-3.5 fill-white text-white rounded-xs" />
-                </button>
+                <Tooltip content="Stop generating" position="top" align="end">
+                  <button
+                    type="button"
+                    onClick={onStopGeneration}
+                    className="w-8 h-8 rounded-full bg-[#1d4ed8] hover:bg-[#1e40af] active:scale-90 text-white flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-blue-400 animate-in zoom-in-75 fade-in"
+                    aria-label="Stop generating"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-white text-white rounded-xs" />
+                  </button>
+                </Tooltip>
               ) : (
                 (inputText.trim().length > 0 || attachments.length > 0) && (
-                  <button
-                    type="submit"
-                    className="w-8 h-8 rounded-full bg-white hover:bg-[#e8eaed] active:scale-90 text-[#131314] flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-[#8ab4f8] animate-in zoom-in-75 fade-in"
-                    title="Send message (Enter)"
-                    aria-label="Send message"
-                  >
-                    <ArrowUp className="w-4 h-4 stroke-[2.75]" />
-                  </button>
+                  <Tooltip content="Send message" position="top" align="end">
+                    <button
+                      type="submit"
+                      className="w-8 h-8 rounded-full bg-white hover:bg-[#e8eaed] active:scale-90 text-[#131314] flex items-center justify-center transition-all duration-150 cursor-pointer shadow-md shrink-0 ml-1 focus:outline-none focus:ring-2 focus:ring-[#8ab4f8] animate-in zoom-in-75 fade-in"
+                      aria-label="Send message"
+                    >
+                      <ArrowUp className="w-4 h-4 stroke-[2.75]" />
+                    </button>
+                  </Tooltip>
                 )
               )}
             </div>

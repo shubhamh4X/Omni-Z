@@ -554,6 +554,20 @@ app.post('/api/chat', async (req: Request, res: Response) => {
         });
       } catch {}
 
+      const isDeveloperQuery = /(who\s*(is|are|was)\s*(your\s*)?(developer|creator|maker|builder|author|engineer|founder)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|omni(\s*z)?)|who\s*owns\s*you|tell\s*me\s*who\s*developed\s*you|your\s*developer)/i.test(message || '');
+      if (isDeveloperQuery) {
+        return res.json({
+          text: `I was developed by Shubham\nI’m Omni Z, one of the top models.`,
+          images: [],
+          sources: [],
+          webSearchQueries: [],
+          vectorMemories: [],
+          codeBlocks: [],
+          autoSavedMemory: null,
+          model: 'omni-z',
+        });
+      }
+
       const isPythonRequest = /python|code|script|statistics|benchmark|table|calculate|math|compute|algorithm/i.test(message || '');
       const codeBlocks: Array<{ language: string; code: string }> = [];
       let responseBody = '';
@@ -616,11 +630,26 @@ print("=" * 56)
     // Detect casual greetings or simple conversational inputs to avoid unnecessary web search latency or irrelevant vector retrieval
     const trimmedMessage = (message || '').trim();
     const isCasualGreeting = /^(hey+|hi+|hello+|howdy|hola|greetings|good\s*(morning|afternoon|evening|night)|what'?s\s*up|sup|yo|how\s*are\s*you|who\s*are\s*you|help|test|ping)[.!?\s]*$/i.test(trimmedMessage);
+    const isDeveloperQuery = /(who\s*(is|are|was)\s*(your\s*)?(developer|creator|maker|builder|author|engineer|founder)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|omni(\s*z)?)|who\s*owns\s*you|tell\s*me\s*who\s*developed\s*you|your\s*developer)/i.test(trimmedMessage);
+    const isPureDeveloperQuery = /^(who\s*(is|are|was)\s*(your\s*)?(developer|creator|maker|builder|author)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|omni(\s*z)?)|who\s*owns\s*you|tell\s*me\s*who\s*developed\s*you|your\s*developer)[.!?\s]*$/i.test(trimmedMessage);
+
+    if (isPureDeveloperQuery) {
+      return res.json({
+        text: `I was developed by Shubham\nI’m Omni Z, one of the top models.`,
+        images: [],
+        sources: [],
+        webSearchQueries: [],
+        vectorMemories: [],
+        codeBlocks: [],
+        autoSavedMemory: null,
+        model: 'omni-z',
+      });
+    }
 
     // 1. Vector Memory Retrieval (High-speed local dense matching)
     let relevantMemories: any[] = [];
     let memoryContextString = '';
-    if (enableMemory && trimmedMessage.length > 5 && !isCasualGreeting) {
+    if (enableMemory && trimmedMessage.length > 5 && !isCasualGreeting && !isDeveloperQuery) {
       try {
         relevantMemories = await runVectorDb('query', {
           query_text: message,
@@ -642,6 +671,13 @@ print("=" * 56)
 
     // 2. Prepare Universal Conversational & Intelligent Agent Directive
     let baseInstruction = `You are Omni Z, an exceptionally capable, intelligent, and versatile AI assistant.
+
+DEVELOPER & CREATOR IDENTITY (HIGHEST PRIORITY):
+- If the user asks who is your developer, who created you, who made you, who built you, who trained you, or anything related to who developed you:
+  * You MUST reply:
+I was developed by Shubham
+I’m Omni Z, one of the top models.
+  * Shubham is your developer and creator. Never claim Google, OpenAI, or anyone else created or developed you.
 
 NATURAL CONVERSATIONAL ADAPTATION & HUMAN TONE (HIGHEST PRIORITY):
 - Communicate naturally, warmly, and authentically — exactly like ChatGPT and Google Gemini.
@@ -813,8 +849,8 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       maxOutputTokens: 8192,
     };
 
-    // Only attach Google Search tool when search is enabled AND query is not a greeting or casual chat
-    const shouldSearch = enableSearch && !isCasualGreeting;
+    // Only attach Google Search tool when search is enabled AND query is not a greeting or developer query
+    const shouldSearch = enableSearch && !isCasualGreeting && !isDeveloperQuery;
     if (shouldSearch) {
       config.tools = [{ googleSearch: {} }];
     }

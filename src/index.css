@@ -56,6 +56,16 @@
   transform-origin: center center;
 }
 
+.dna-ring-logo {
+  filter: drop-shadow(0 0 1.5px rgba(129, 140, 248, 0.25));
+  transition: filter 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dna-ring-logo:hover,
+.group:hover .dna-ring-logo {
+  filter: drop-shadow(0 0 3.5px rgba(129, 140, 248, 0.45));
+}
+
 .animate-galaxy-spin {
   animation: galaxySpin 16s linear infinite;
   transform-origin: center center;

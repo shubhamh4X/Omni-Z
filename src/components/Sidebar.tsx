@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   SquarePen, 
   Search, 
@@ -7,6 +7,7 @@ import {
   Check, 
   X, 
   PanelLeftClose, 
+  ChevronLeft,
   MessageSquare,
   GraduationCap,
   BookOpen,
@@ -23,6 +24,7 @@ import { ChatSession } from '../types';
 import { DnaRingLogo } from './DnaRingLogo';
 import { useAuth } from '../context/AuthContext';
 import { GoogleIcon } from './GoogleIcon';
+import { Tooltip } from './Tooltip';
 
 // Custom Gems Icon
 export const GemsIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (
@@ -60,6 +62,8 @@ export const ProjectsIcon: React.FC<{ className?: string }> = ({ className = 'w-
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
+  onClose?: () => void;
+  onOpen?: () => void;
   sessions: ChatSession[];
   activeSessionId: string;
   onSelectSession: (id: string) => void;
@@ -81,6 +85,8 @@ export const cleanTitle = (str: string): string => {
 export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onToggle,
+  onClose,
+  onOpen,
   sessions,
   activeSessionId,
   onSelectSession,
@@ -99,6 +105,216 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [tutorLevel, setTutorLevel] = useState<'Beginner' | 'Undergraduate' | 'Advanced'>('Beginner');
   const [tutorStyle, setTutorStyle] = useState<'Socratic' | 'First Principles' | 'Practice & Quiz'>('Socratic');
   const { user, loginWithGoogle, logout } = useAuth();
+
+  // Mobile touch & pointer slide-to-collapse / slide-to-open gesture support
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') return window.innerWidth < 768;
+    return false;
+  });
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [dragOffset, setDragOffset] = useState<number>(0);
+
+  const sidebarRef = useRef<HTMLElement>(null);
+  const startXRef = useRef<number>(0);
+  const startYRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
+  const directionLockedRef = useRef<'horizontal' | 'vertical' | null>(null);
+  const isEdgeDragRef = useRef<boolean>(false);
+  const pointerStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      onToggle();
+    }
+  };
+
+  const handleOpen = () => {
+    if (onOpen) {
+      onOpen();
+    } else {
+      onToggle();
+    }
+  };
+
+  // Touch handlers on the open sidebar (and backdrop) for sliding to collapse with finger
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    startXRef.current = touch.clientX;
+    startYRef.current = touch.clientY;
+    startTimeRef.current = Date.now();
+    directionLockedRef.current = null;
+    isEdgeDragRef.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    const diffX = touch.clientX - startXRef.current;
+    const diffY = touch.clientY - startYRef.current;
+
+    // Disambiguate horizontal swipe from vertical list scroll
+    if (!directionLockedRef.current) {
+      if (Math.hypot(diffX, diffY) > 8) {
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+          directionLockedRef.current = 'horizontal';
+          setIsDragging(true);
+        } else {
+          directionLockedRef.current = 'vertical';
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
+    if (directionLockedRef.current === 'horizontal') {
+      if (e.cancelable) e.preventDefault();
+      const width = sidebarRef.current?.offsetWidth || 256;
+      if (diffX < 0) {
+        // Sliding left to collapse
+        setDragOffset(Math.max(-width, diffX));
+      } else {
+        // Slight resistance when dragging right while already open
+        setDragOffset(Math.min(18, diffX * 0.15));
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobile || !isDragging) {
+      setIsDragging(false);
+      setDragOffset(0);
+      directionLockedRef.current = null;
+      return;
+    }
+
+    const elapsed = Math.max(1, Date.now() - startTimeRef.current);
+    const velocity = dragOffset / elapsed; // px/ms, negative when moved left
+
+    // Collapse if slid left by more than 50px or swiped with speed
+    if (dragOffset < -50 || velocity < -0.25) {
+      handleClose();
+    }
+
+    setIsDragging(false);
+    setDragOffset(0);
+    directionLockedRef.current = null;
+  };
+
+  // Touch handlers for the left edge when sidebar is closed to slide it open with finger
+  const handleEdgeTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    startXRef.current = touch.clientX;
+    startYRef.current = touch.clientY;
+    startTimeRef.current = Date.now();
+    directionLockedRef.current = null;
+    isEdgeDragRef.current = true;
+  };
+
+  const handleEdgeTouchMove = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const touch = e.touches[0];
+    const diffX = touch.clientX - startXRef.current;
+    const diffY = touch.clientY - startYRef.current;
+
+    if (!directionLockedRef.current) {
+      if (Math.hypot(diffX, diffY) > 8) {
+        if (Math.abs(diffX) > Math.abs(diffY) && diffX > 0) {
+          directionLockedRef.current = 'horizontal';
+          setIsDragging(true);
+        } else {
+          directionLockedRef.current = 'vertical';
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
+    if (directionLockedRef.current === 'horizontal') {
+      if (e.cancelable) e.preventDefault();
+      const width = 256;
+      // offset ranges from -256 to 0 as user slides right
+      const offset = Math.min(width, Math.max(0, diffX)) - width;
+      setDragOffset(offset);
+    }
+  };
+
+  const handleEdgeTouchEnd = () => {
+    if (!isMobile || !isDragging || !isEdgeDragRef.current) {
+      setIsDragging(false);
+      setDragOffset(0);
+      isEdgeDragRef.current = false;
+      directionLockedRef.current = null;
+      return;
+    }
+
+    const width = 256;
+    const movedRight = width + dragOffset; // how many px opened
+    const elapsed = Math.max(1, Date.now() - startTimeRef.current);
+    const velocity = movedRight / elapsed;
+
+    if (movedRight > 55 || velocity > 0.25) {
+      handleOpen();
+    }
+
+    setIsDragging(false);
+    setDragOffset(0);
+    isEdgeDragRef.current = false;
+    directionLockedRef.current = null;
+  };
+
+  // Pointer drag on the grab handle (works for mouse dragging in Phone Preview mode)
+  const handlePointerDownHandle = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    pointerStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      time: Date.now(),
+    };
+    setIsDragging(true);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handlePointerMoveHandle = (e: React.PointerEvent) => {
+    if (!pointerStartRef.current) return;
+    const diffX = e.clientX - pointerStartRef.current.x;
+    const width = sidebarRef.current?.offsetWidth || 256;
+    if (diffX < 0) {
+      setDragOffset(Math.max(-width, diffX));
+    } else {
+      setDragOffset(Math.min(18, diffX * 0.15));
+    }
+  };
+
+  const handlePointerUpHandle = (e: React.PointerEvent) => {
+    if (!pointerStartRef.current) return;
+    const diffX = e.clientX - pointerStartRef.current.x;
+    const elapsed = Math.max(1, Date.now() - pointerStartRef.current.time);
+    const velocity = diffX / elapsed;
+    pointerStartRef.current = null;
+    setIsDragging(false);
+
+    if (diffX < -50 || velocity < -0.25) {
+      handleClose();
+    }
+    setDragOffset(0);
+  };
 
   useEffect(() => {
     const handleCloseMenu = () => setMenuOpenId(null);
@@ -162,24 +378,54 @@ Begin our masterclass on "${topic}" now.`;
 
   return (
     <>
-      {/* Mobile backdrop with smooth fade transition */}
+      {/* Mobile backdrop with smooth fade transition and touch swipe to collapse */}
       <div
-        onClick={onToggle}
+        onClick={handleClose}
+        onTouchStart={isOpen ? handleTouchStart : undefined}
+        onTouchMove={isOpen ? handleTouchMove : undefined}
+        onTouchEnd={isOpen ? handleTouchEnd : undefined}
+        onTouchCancel={isOpen ? handleTouchEnd : undefined}
+        style={
+          isMobile && isDragging
+            ? {
+                opacity: isOpen
+                  ? Math.max(0, 1 - Math.abs(dragOffset) / 256)
+                  : Math.max(0, Math.min(1, (256 + dragOffset) / 256)),
+                transition: 'none',
+              }
+            : undefined
+        }
         className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-xs md:hidden transition-opacity duration-300 ease-in-out ${
-          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          isOpen || (isMobile && isDragging && isEdgeDragRef.current)
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none'
         }`}
       />
 
-      {/* Sidebar Container: Transitions smoothly between w-64 (open) and w-[68px] (closed rail on desktop) */}
+      {/* Sidebar Container: Transitions smoothly between w-64 (open) and w-[68px] (closed rail on desktop), with finger slide on mobile */}
       <aside
+        ref={sidebarRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        style={
+          isMobile && isDragging
+            ? {
+                transform: `translateX(${dragOffset}px)`,
+                transition: 'none',
+              }
+            : undefined
+        }
         className={`
           fixed md:relative inset-y-0 left-0 z-40 md:z-40 h-full
           bg-[#18191b] flex flex-col select-none border-r border-[#27282b]
           transition-[width,transform] duration-300 ease-[cubic-bezier(0.2,0,0,1)]
           shrink-0 shadow-2xl md:shadow-none
+          touch-pan-y
           ${
-            isOpen
-              ? 'w-64 translate-x-0 overflow-hidden'
+            isOpen || (isMobile && isDragging && isEdgeDragRef.current)
+              ? 'w-64 translate-x-0 overflow-visible md:overflow-hidden'
               : 'w-0 -translate-x-full md:w-[68px] md:translate-x-0 overflow-hidden md:overflow-visible'
           }
         `}
@@ -189,7 +435,7 @@ Begin our masterclass on "${topic}" now.`;
         {/* ========================================================================= */}
         <div
           className={`w-[68px] h-full flex flex-col items-center py-3.5 justify-between shrink-0 transition-opacity duration-200 overflow-visible relative z-40 ${
-            isOpen ? 'hidden' : 'flex'
+            isOpen || (isMobile && isDragging && isEdgeDragRef.current) ? 'hidden' : 'flex'
           }`}
         >
           {/* Top Section: Only Omni Z Logo (Clicking expands sidebar) + 6 Feature Icons */}
@@ -199,7 +445,6 @@ Begin our masterclass on "${topic}" now.`;
               <button
                 onClick={onToggle}
                 className="w-10 h-10 rounded-full hover:bg-[#282a2c] text-[#e3e3e3] hover:text-white transition-all cursor-pointer flex items-center justify-center active:scale-95 shrink-0"
-                title="Expand sidebar"
                 aria-label="Expand sidebar"
               >
                 <DnaRingLogo className="w-6 h-6 group-hover:scale-110 transition-transform" />
@@ -234,7 +479,6 @@ Begin our masterclass on "${topic}" now.`;
                 <button
                   onClick={onNewChat}
                   className="w-10 h-10 rounded-full bg-[#1e1f20] hover:bg-[#282a2c] text-[#e3e3e3] hover:text-white transition-all duration-200 cursor-pointer flex items-center justify-center active:scale-95 shadow-xs shrink-0"
-                  title="New chat"
                   aria-label="New chat"
                 >
                   <svg
@@ -292,7 +536,6 @@ Begin our masterclass on "${topic}" now.`;
                 <button
                   onClick={handleSearchClick}
                   className="w-10 h-10 rounded-full hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white transition-all duration-200 cursor-pointer flex items-center justify-center active:scale-95 shrink-0"
-                  title="Search history"
                   aria-label="Search history"
                 >
                   <Search className="w-5 h-5 text-[#9aa0a6] transition-transform duration-200 group-hover:scale-105" />
@@ -325,7 +568,6 @@ Begin our masterclass on "${topic}" now.`;
                 <button
                   onClick={() => setActiveModal('tutor')}
                   className="w-10 h-10 rounded-full hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white transition-all duration-200 cursor-pointer flex items-center justify-center active:scale-95 shrink-0"
-                  title="Guided Tutor & Learning"
                   aria-label="Guided Tutor & Learning"
                 >
                   <GraduationCap className="w-5 h-5 text-[#c58af9] transition-transform duration-200 group-hover:scale-105" />
@@ -358,7 +600,6 @@ Begin our masterclass on "${topic}" now.`;
                 <button
                   onClick={() => setActiveModal('gems')}
                   className="w-10 h-10 rounded-full hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white transition-all duration-200 cursor-pointer flex items-center justify-center active:scale-95 shrink-0"
-                  title="Explore Gems & Agents"
                   aria-label="Explore Gems & Agents"
                 >
                   <GemsIcon className="w-5 h-5 text-[#f43f5e] transition-transform duration-200 group-hover:scale-105" />
@@ -391,7 +632,6 @@ Begin our masterclass on "${topic}" now.`;
                 <button
                   onClick={() => setActiveModal('projects')}
                   className="w-10 h-10 rounded-full hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white transition-all duration-200 cursor-pointer flex items-center justify-center active:scale-95 shrink-0"
-                  title="Projects & Artifacts"
                   aria-label="Projects & Artifacts"
                 >
                   <ProjectsIcon className="w-5 h-5 text-[#fb923c] transition-transform duration-200 group-hover:scale-105" />
@@ -414,7 +654,7 @@ Begin our masterclass on "${topic}" now.`;
                       hover:shadow-[0_8px_32px_rgba(0,0,0,0.55)]
                     "
                   >
-                    Projects & Saved
+                    Projects
                   </button>
                 </div>
               </div>
@@ -487,29 +727,37 @@ Begin our masterclass on "${topic}" now.`;
         </div>
 
         {/* ========================================================================= */}
-        {/* EXPANDED FULL SIDEBAR VIEW (Active when isOpen = true) */}
+        {/* EXPANDED FULL SIDEBAR VIEW (Active when isOpen = true or dragging open from edge) */}
         {/* ========================================================================= */}
         <div
-          className={`w-64 h-full flex flex-col shrink-0 transition-opacity duration-200 ${
-            isOpen ? 'flex' : 'hidden'
+          className={`w-64 h-full flex flex-col shrink-0 transition-opacity duration-200 overflow-hidden ${
+            isOpen || (isMobile && isDragging && isEdgeDragRef.current) ? 'flex' : 'hidden'
           }`}
         >
           {/* Top Header: Logo + Brand Title + Collapse Button */}
           <div className="px-4 pt-3.5 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <DnaRingLogo className="w-6 h-6" />
+              <DnaRingLogo className="w-6 h-6 shrink-0" animate={true} glow={true} />
               <span className="font-semibold text-lg tracking-normal text-[#e3e3e3]">
                 Omni Z
               </span>
             </div>
 
-            <button
-              onClick={onToggle}
-              className="p-1.5 rounded-lg hover:bg-[#282a2c] text-[#9aa0a6] hover:text-[#e3e3e3] transition-colors cursor-pointer"
-              title="Collapse sidebar"
-            >
-              <PanelLeftClose className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <div className="md:hidden flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#202124] text-[10px] text-[#9aa0a6] select-none border border-[#2d2f33]">
+                <ChevronLeft className="w-3 h-3 text-[#8ab4f8] animate-pulse" />
+                <span>Slide</span>
+              </div>
+              <Tooltip content="Collapse sidebar" position="bottom">
+                <button
+                  onClick={handleClose}
+                  className="p-1.5 rounded-lg hover:bg-[#282a2c] text-[#9aa0a6] hover:text-[#e3e3e3] transition-colors cursor-pointer"
+                  aria-label="Collapse sidebar"
+                >
+                  <PanelLeftClose className="w-5 h-5" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
 
           {/* New Chat Button */}
@@ -634,7 +882,6 @@ Begin our masterclass on "${topic}" now.`;
                               ? 'opacity-100 bg-[#3c4043] text-white'
                               : 'opacity-0 group-hover:opacity-100'
                           }`}
-                          title="More options"
                           aria-label="More options"
                         >
                           <MoreVertical className="w-3.5 h-3.5" />
@@ -742,7 +989,37 @@ Begin our masterclass on "${topic}" now.`;
             )}
           </div>
         </div>
+
+        {/* Mobile tactile slide-to-collapse grab handle */}
+        {(isOpen || (isMobile && isDragging && isEdgeDragRef.current)) && (
+          <div
+            onPointerDown={handlePointerDownHandle}
+            onPointerMove={handlePointerMoveHandle}
+            onPointerUp={handlePointerUpHandle}
+            onPointerCancel={handlePointerUpHandle}
+            className="md:hidden absolute -right-3.5 top-1/2 -translate-y-1/2 z-50 flex items-center justify-center py-6 px-1.5 cursor-grab active:cursor-grabbing touch-none select-none group"
+            title="Slide left with finger to collapse"
+            aria-label="Slide left with finger to collapse sidebar"
+          >
+            <div className="w-1.5 h-12 rounded-full bg-white/30 group-hover:bg-white/50 group-active:bg-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.6)] backdrop-blur-xs transition-all flex items-center justify-center ring-1 ring-black/20">
+              <div className="w-0.5 h-4 rounded-full bg-black/40" />
+            </div>
+          </div>
+        )}
       </aside>
+
+      {/* Mobile edge swipe detector to slide open sidebar with finger */}
+      {!isOpen && (
+        <div
+          onTouchStart={handleEdgeTouchStart}
+          onTouchMove={handleEdgeTouchMove}
+          onTouchEnd={handleEdgeTouchEnd}
+          onTouchCancel={handleEdgeTouchEnd}
+          className="fixed inset-y-0 left-0 w-6 z-30 md:hidden touch-none pointer-events-auto"
+          aria-hidden="true"
+          title="Slide right to open sidebar"
+        />
+      )}
 
       {/* ========================================================================= */}
       {/* FEATURE MODALS & DRAWERS */}
