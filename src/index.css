@@ -40,6 +40,24 @@
   }
 }
 
+@keyframes slideUpFromSearchBar {
+  0% {
+    transform: translateY(48px) scale(0.97);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up-from-search {
+  animation: slideUpFromSearchBar 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @keyframes galaxyAuraPulse {
   0%, 100% {
     transform: scale(1) rotate(0deg);

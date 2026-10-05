@@ -16,9 +16,7 @@ import {
   X,
   Cpu,
   Code,
-  Compass,
   FileText,
-  Lightbulb,
   Image as ImageIcon,
   Download,
   Maximize2,
@@ -156,34 +154,6 @@ interface ChatViewProps {
   isTemporaryChat?: boolean;
   onTurnOffTemporaryChat?: () => void;
 }
-
-const STARTER_PROMPTS = [
-  {
-    icon: Dna,
-    title: 'Autonomous Software & AI Builder',
-    prompt: 'Build a complete production-ready full-stack software system in a single prompt: an autonomous real-time AI Agent orchestration platform with Next.js frontend, Python FastAPI backend, PostgreSQL schema, Docker compose, and live WebSocket streaming.',
-  },
-  {
-    icon: ImageIcon,
-    title: 'AI Image Generation',
-    prompt: 'Generate a high-fidelity cinematic cyberpunk city at night with glowing neon reflections.',
-  },
-  {
-    icon: Compass,
-    title: 'Research & Live Web',
-    prompt: 'Search the web for the latest artificial intelligence breakthroughs and tech news this week.',
-  },
-  {
-    icon: Code,
-    title: 'Code & Run Python',
-    prompt: 'Write and run a Python script that calculates statistics, benchmarks performance, and prints a formatted summary table.',
-  },
-  {
-    icon: Lightbulb,
-    title: 'Creative Planning',
-    prompt: 'Draft an executive launch plan and feature roadmap for an autonomous developer platform.',
-  },
-];
 
 export const ChatView: React.FC<ChatViewProps> = ({
   sessionId,
@@ -836,66 +806,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 sm:px-6 relative z-10">
-        {isInitialState ? (
-          isTemporaryChat ? (
-
-            <div className="max-w-2xl mx-auto min-h-[calc(100vh-250px)] flex flex-col items-center justify-center text-center py-10 px-4 animate-in fade-in zoom-in-95 duration-300">
-
-              <div className="mb-4 inline-flex items-center justify-center p-2 rounded-full text-white">
-                <TemporaryChatIcon className="w-9 h-9" />
-              </div>
-
-              <h1 className="text-3xl sm:text-[38px] font-normal text-white mb-3 tracking-tight font-sans">
-                Just stopping by?
-              </h1>
-
-              <p className="text-xs sm:text-[13.5px] text-[#9aa0a6] max-w-lg mx-auto leading-relaxed mb-6 font-sans">
-                <span className="underline decoration-dotted underline-offset-4 cursor-default text-[#c4c7c5]">Temporary chats</span> don't appear in <span className="underline decoration-dotted underline-offset-4 cursor-default text-[#c4c7c5]">recent chats</span> and aren't used to improve AI. Stored for 72 hours for safety.
-              </p>
-            </div>
-          ) : (
-
-            <div className="max-w-3xl mx-auto min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center py-10 px-4">
-
-              <div className="mb-5 relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-rose-500/20 rounded-full blur-xl opacity-75 group-hover:opacity-100 transition-opacity" />
-                <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" />
-              </div>
-
-              <h1 className="text-3xl sm:text-4xl font-normal text-[#e3e3e3] mb-8 tracking-tight font-sans">
-                Hello, what can I do for you?
-              </h1>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left">
-                {STARTER_PROMPTS.map((item, idx) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setInputText(item.prompt);
-                        textareaRef.current?.focus();
-                      }}
-                      className="p-4 rounded-2xl bg-[#1e1f20] hover:bg-[#282a2c] border border-[#2d2f33] hover:border-[#3c4043] transition-all cursor-pointer group text-left shadow-xs"
-                    >
-                      <div className="flex items-center gap-2 text-xs font-semibold text-[#8ab4f8] mb-1.5">
-                        <Icon className="w-4 h-4" />
-                        <span>{item.title}</span>
-                      </div>
-                      <div className="text-xs text-[#c4c7c5] group-hover:text-white line-clamp-2 leading-relaxed">
-                        {item.prompt}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )
-        ) : (
-
-          <div className="max-w-4xl mx-auto w-full py-8 space-y-8 px-2 sm:px-6">
-            {messages.map((message) => {
+      <div
+        ref={messagesContainerRef}
+        className={`flex-1 overflow-y-auto px-4 sm:px-6 relative z-10 transition-opacity duration-300 ${
+          isInitialState ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+        }`}
+      >
+        <div className="max-w-4xl mx-auto w-full py-8 space-y-8 px-2 sm:px-6">
+          {messages.map((message) => {
               const isUser = message.role === 'user';
 
               return (
@@ -1250,11 +1168,52 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             <div ref={messagesEndRef} />
           </div>
-        )}
       </div>
 
-      <div className="p-4 bg-gradient-to-t from-[#131314] via-[#131314]/95 to-transparent relative z-20">
+      <div
+        className={`w-full transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] relative z-20 ${
+          isInitialState
+            ? '-translate-y-[calc(38vh)] sm:-translate-y-[calc(42vh)] px-4 py-2'
+            : 'translate-y-0 p-4 bg-gradient-to-t from-[#131314] via-[#131314]/95 to-transparent'
+        }`}
+      >
         <div className="max-w-4xl mx-auto space-y-2 px-2 sm:px-4">
+
+          <div
+            key={`welcome_${sessionId}_${isTemporaryChat ? 'temp' : 'reg'}`}
+            className={`w-full max-w-3xl mx-auto px-4 text-center transition-all duration-500 ease-out relative z-10 ${
+              isInitialState
+                ? 'opacity-100 max-h-[350px] mb-6 sm:mb-8 animate-slide-up-from-search'
+                : 'opacity-0 max-h-0 mb-0 overflow-hidden pointer-events-none -translate-y-6'
+            }`}
+          >
+            {isTemporaryChat ? (
+              <div className="max-w-2xl mx-auto flex flex-col items-center justify-center text-center">
+                <div className="mb-4 inline-flex items-center justify-center p-2 rounded-full text-white">
+                  <TemporaryChatIcon className="w-9 h-9" />
+                </div>
+
+                <h1 className="text-3xl sm:text-[38px] font-normal text-white mb-3 tracking-tight font-sans">
+                  Just stopping by?
+                </h1>
+
+                <p className="text-xs sm:text-[13.5px] text-[#9aa0a6] max-w-lg mx-auto leading-relaxed font-sans">
+                  <span className="underline decoration-dotted underline-offset-4 cursor-default text-[#c4c7c5]">Temporary chats</span> don't appear in <span className="underline decoration-dotted underline-offset-4 cursor-default text-[#c4c7c5]">recent chats</span> and aren't used to improve AI. Stored for 72 hours for safety.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="mb-5 relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-rose-500/20 rounded-full blur-xl opacity-75 group-hover:opacity-100 transition-opacity" />
+                  <DnaRingLogo className="w-16 h-16 mx-auto relative z-10" />
+                </div>
+
+                <h1 className="text-3xl sm:text-4xl font-normal text-[#e3e3e3] tracking-tight font-sans">
+                  Hello, what can I do for you?
+                </h1>
+              </div>
+            )}
+          </div>
 
           {attachments.length > 0 && (
             <div className="p-3 rounded-2xl bg-[#1e1f20] border border-[#2d2f33] space-y-2.5 text-xs shadow-xl animate-in fade-in duration-200">
@@ -1564,7 +1523,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             className="relative flex items-center bg-[#1e1f20] hover:bg-[#222427] focus-within:bg-[#222427] border border-[#2d2f33] focus-within:border-[#3c4043] rounded-full px-3 py-2 shadow-2xl transition-all"
           >
 
-            <div className="relative" ref={attachMenuRef}>
+            <div className="relative flex items-center shrink-0" ref={attachMenuRef}>
               <Tooltip content="Add files and tools" position="top" align="start">
                 <button
                   type="button"
@@ -1572,7 +1531,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     setAttachMenuOpen(!attachMenuOpen);
                     setActiveSubmenu(null);
                   }}
-                  className={`p-2 rounded-full transition-all duration-200 cursor-pointer mr-0.5 shrink-0 ${
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0 ${
                     attachMenuOpen
                       ? 'bg-[#2d2f33] text-white rotate-45'
                       : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
@@ -1872,15 +1831,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             <Tooltip content="Image studio & ratios" position="top">
               <button
+                type="button"
                 onClick={() => setShowImageStudio((prev) => !prev)}
-                className={`p-1.5 rounded-full transition-colors cursor-pointer mr-1 shrink-0 ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0 ml-0.5 ${
                   showImageStudio
                     ? 'bg-[#8ab4f8]/20 text-[#8ab4f8]'
                     : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
                 }`}
                 aria-label="Toggle AI Image Studio & Aspect Ratios"
               >
-                <ImageIcon className="w-4 h-4" />
+                <ImageIcon className="w-5 h-5" />
               </button>
             </Tooltip>
 

@@ -31,41 +31,22 @@ export const TemporaryChatButton: React.FC<TemporaryChatButtonProps> = ({
   onToggle,
 }) => {
   return (
-    <div className="flex items-center gap-1.5">
-
-      <Tooltip
-        content={isTemporaryChat ? 'Temporary chat is active (click to exit)' : 'Turn on temporary chat'}
-        position="bottom"
-        align="end"
+    <Tooltip
+      content={isTemporaryChat ? 'Close temporary chat' : 'Turn on temporary chat'}
+      position="bottom"
+      align="end"
+    >
+      <button
+        onClick={onToggle}
+        className="p-2 rounded-full text-[#9aa0a6] hover:text-white hover:bg-[#282a2c] transition-all duration-200 cursor-pointer flex items-center justify-center active:scale-95"
+        aria-label={isTemporaryChat ? 'Close temporary chat' : 'Turn on temporary chat'}
       >
-        <button
-          onClick={onToggle}
-          className={`relative p-2 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center group active:scale-95 ${
-            isTemporaryChat
-              ? 'bg-white/10 text-white ring-1 ring-white/30 shadow-md shadow-black/40 hover:bg-white/15'
-              : 'text-[#9aa0a6] hover:text-white hover:bg-[#282a2c]'
-          }`}
-          aria-label={isTemporaryChat ? 'Exit temporary chat' : 'Turn on temporary chat'}
-        >
-          <TemporaryChatIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />
-
-          {isTemporaryChat && (
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-white ring-2 ring-[#131314] animate-pulse" />
-          )}
-        </button>
-      </Tooltip>
-
-      {isTemporaryChat && (
-        <Tooltip content="Close temporary chat" position="bottom" align="end">
-          <button
-            onClick={onToggle}
-            className="p-2 rounded-full hover:bg-white/10 text-[#c4c7c5] hover:text-white transition-all cursor-pointer flex items-center justify-center active:scale-95 animate-in fade-in zoom-in-90 duration-200"
-            aria-label="Close temporary chat"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </Tooltip>
-      )}
-    </div>
+        {isTemporaryChat ? (
+          <X className="w-5 h-5 text-[#c4c7c5] hover:text-white animate-in fade-in zoom-in-90 duration-200" />
+        ) : (
+          <TemporaryChatIcon className="w-5 h-5 transition-transform" />
+        )}
+      </button>
+    </Tooltip>
   );
 };

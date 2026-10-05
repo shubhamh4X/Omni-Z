@@ -1,4 +1,4 @@
-import React, { useMemo, useId } from 'react';
+import React, { useMemo } from 'react';
 
 interface DnaRingLogoProps {
   className?: string;
@@ -10,15 +10,13 @@ interface DnaRingLogoProps {
 
 export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
   className = 'w-7 h-7',
-  animate = true,
+  animate = false,
   glow = true,
 }) => {
-  const reactId = useId();
-  const uid = useMemo(() => reactId.replace(/[^a-zA-Z0-9_-]/g, '_'), [reactId]);
-  const strandAId = `dnaStrandA_${uid}`;
-  const strandBId = `dnaStrandB_${uid}`;
-  const rungGradId = `dnaRungGrad_${uid}`;
-  const coreGlowId = `dnaCoreGlow_${uid}`;
+  const strandAId = 'omniDnaStrandA';
+  const strandBId = 'omniDnaStrandB';
+  const rungGradId = 'omniDnaRungGrad';
+  const coreGlowId = 'omniDnaCoreGlow';
 
   const { pathA, pathB, rungs } = useMemo(() => {
     const cx = 60;

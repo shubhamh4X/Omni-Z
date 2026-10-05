@@ -715,7 +715,7 @@ Begin our masterclass on "${topic}" now.`;
 
           <div className="px-4 pt-3.5 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <DnaRingLogo className="w-6 h-6 shrink-0" animate={true} glow={true} />
+              <DnaRingLogo className="w-6 h-6 shrink-0" animate={false} glow={true} />
               <span className="font-semibold text-lg tracking-normal text-[#e3e3e3]">
                 Omni Z
               </span>

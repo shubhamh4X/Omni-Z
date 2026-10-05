@@ -17,6 +17,21 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/favicon.ico', (_req: Request, res: Response) => {
+  const icoPath = path.join(__dirname, 'public', 'favicon.ico');
+  const distIco = path.join(__dirname, 'dist', 'favicon.ico');
+  if (fs.existsSync(icoPath)) {
+    res.setHeader('Content-Type', 'image/x-icon');
+    return res.sendFile(icoPath);
+  }
+  if (fs.existsSync(distIco)) {
+    res.setHeader('Content-Type', 'image/x-icon');
+    return res.sendFile(distIco);
+  }
+  res.redirect('/favicon.svg');
+});
 
 function getApiKey(): string {
   return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
