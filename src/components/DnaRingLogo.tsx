@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useId } from 'react';
 
 interface DnaRingLogoProps {
   className?: string;
@@ -10,13 +10,15 @@ interface DnaRingLogoProps {
 
 export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
   className = 'w-7 h-7',
-  animate = false,
+  animate = true,
   glow = true,
 }) => {
-  const strandAId = 'omniDnaStrandA';
-  const strandBId = 'omniDnaStrandB';
-  const rungGradId = 'omniDnaRungGrad';
-  const coreGlowId = 'omniDnaCoreGlow';
+  const rawId = useId();
+  const cleanId = rawId.replace(/[^a-zA-Z0-9]/g, '');
+  const strandAId = `omniDnaStrandA_${cleanId}`;
+  const strandBId = `omniDnaStrandB_${cleanId}`;
+  const rungGradId = `omniDnaRungGrad_${cleanId}`;
+  const coreGlowId = `omniDnaCoreGlow_${cleanId}`;
 
   const { pathA, pathB, rungs } = useMemo(() => {
     const cx = 60;
@@ -117,8 +119,9 @@ export const DnaRingLogo: React.FC<DnaRingLogoProps> = ({
       <g
         className={animate ? 'animate-spin-slow' : ''}
         style={{
-          transformOrigin: '60px 60px',
-          animation: animate ? 'spinSlow 32s linear infinite' : undefined,
+          transformBox: 'fill-box',
+          transformOrigin: 'center center',
+          animation: animate ? 'spinSlow 20s linear infinite' : undefined,
         }}
       >
 

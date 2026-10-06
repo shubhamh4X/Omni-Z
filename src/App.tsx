@@ -171,6 +171,8 @@ export default function App() {
             messages: parsedMessages,
             createdAt: data.createdAt || Date.now(),
             updatedAt: data.updatedAt || Date.now(),
+            isPinned: Boolean(data.isPinned),
+            pinnedAt: data.pinnedAt || undefined,
           });
         });
 
@@ -230,6 +232,8 @@ export default function App() {
               messages: JSON.stringify(s.messages.slice(-30)),
               updatedAt: s.updatedAt,
               createdAt: s.createdAt,
+              isPinned: Boolean(s.isPinned),
+              pinnedAt: s.pinnedAt || null,
             },
             { merge: true }
           );
@@ -352,6 +356,39 @@ export default function App() {
     }
   };
 
+  const handleTogglePinSession = async (id: string) => {
+    let nextPinnedState = false;
+    setSessions((prev) => {
+      const updated = prev.map((s) => {
+        if (s.id === id) {
+          nextPinnedState = !s.isPinned;
+          return {
+            ...s,
+            isPinned: nextPinnedState,
+            pinnedAt: nextPinnedState ? Date.now() : undefined,
+          };
+        }
+        return s;
+      });
+      try {
+        localStorage.setItem('omniz_sessions', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (user && !user.isGuest) {
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'sessions', id),
+          { isPinned: nextPinnedState, pinnedAt: nextPinnedState ? Date.now() : null },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn('Failed to update session pin status in Firestore:', err);
+      }
+    }
+  };
+
   const handleClearCurrentChat = async () => {
     if (isTemporaryChat) {
       setTemporarySession({
@@ -453,10 +490,51 @@ export default function App() {
     setIsLoading(true);
 
     try {
+      const assistantMsgId = `msg_${Date.now()}_a`;
+      const initialAssistantMessage: ChatMessage = {
+        id: assistantMsgId,
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        sources: [],
+        webSearchQueries: [],
+        vectorMemories: [],
+        codeBlocks: [],
+        images: [],
+      };
+
+      let assistantMessageAdded = false;
+
+      const appendEmptyAssistantIfFirstChunk = () => {
+        if (!assistantMessageAdded) {
+          assistantMessageAdded = true;
+          if (isTemporaryChat) {
+            setTemporarySession((prev) => ({
+              ...prev,
+              messages: [...prev.messages, initialAssistantMessage],
+              updatedAt: Date.now(),
+            }));
+          } else {
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.id === targetSessionId
+                  ? {
+                      ...s,
+                      messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), initialAssistantMessage],
+                      updatedAt: Date.now(),
+                    }
+                  : s
+              )
+            );
+          }
+        }
+      };
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream, application/json',
         },
         signal: abortControllerRef.current.signal,
         body: JSON.stringify({
@@ -473,6 +551,7 @@ export default function App() {
           cognitiveMode: selectedModel,
           imageAspectRatio: extraOptions?.imageAspectRatio || '1:1',
           userName: user?.displayName ? user.displayName.split(' ')[0] : undefined,
+          stream: true,
         }),
       });
 
@@ -488,41 +567,137 @@ export default function App() {
         throw new Error(errMessage);
       }
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream') && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let accumulatedText = '';
+        let finalData: any = null;
 
-      const assistantMessage: ChatMessage = {
-        id: `msg_${Date.now()}_a`,
-        role: 'assistant',
-        content: data.text || data.reply || "I'm ready to help. What would you like to explore next?",
-        timestamp: Date.now(),
-        sources: data.sources || [],
-        webSearchQueries: data.webSearchQueries || [],
-        vectorMemories: data.recalledMemories || [],
-        codeBlocks: data.codeBlocks || [],
-        images: data.images || [],
-        imagePrompt: data.imagePrompt || undefined,
-        thinkingProcess: data.thinkingProcess || undefined,
-        autoSavedMemory: data.autoSavedMemory || null,
-      };
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunkStr = decoder.decode(value, { stream: true });
+          const lines = chunkStr.split('\n');
 
-      if (isTemporaryChat) {
-        setTemporarySession((prev) => ({
-          ...prev,
-          messages: [...prev.messages, assistantMessage],
-          updatedAt: Date.now(),
-        }));
-      } else {
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === targetSessionId
-              ? {
-                  ...s,
-                  messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), assistantMessage],
-                  updatedAt: Date.now(),
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const parsed = JSON.parse(line.slice(6));
+                if (parsed.type === 'chunk') {
+                  appendEmptyAssistantIfFirstChunk();
+                  accumulatedText += parsed.text;
+                  const currentText = accumulatedText;
+                  const updateStreamMsg = (msgs: ChatMessage[]) =>
+                    msgs.map((m) => (m.id === assistantMsgId ? { ...m, content: currentText } : m));
+
+                  if (isTemporaryChat) {
+                    setTemporarySession((prev) => ({
+                      ...prev,
+                      messages: updateStreamMsg(prev.messages),
+                      updatedAt: Date.now(),
+                    }));
+                  } else {
+                    setSessions((prev) =>
+                      prev.map((s) => (s.id === targetSessionId ? { ...s, messages: updateStreamMsg(s.messages) } : s))
+                    );
+                  }
+                } else if (parsed.type === 'done') {
+                  finalData = parsed;
                 }
-              : s
-          )
-        );
+              } catch {}
+            }
+          }
+        }
+
+        const resolvedText = finalData?.text || accumulatedText || "I'm ready to help. What would you like to explore next?";
+        const assistantMessage: ChatMessage = {
+          id: assistantMsgId,
+          role: 'assistant',
+          content: resolvedText,
+          timestamp: Date.now(),
+          sources: finalData?.sources || [],
+          webSearchQueries: finalData?.webSearchQueries || [],
+          vectorMemories: finalData?.vectorMemories || [],
+          codeBlocks: finalData?.codeBlocks || [],
+          images: finalData?.images || [],
+          imagePrompt: finalData?.imagePrompt || undefined,
+          thinkingProcess: finalData?.thinkingProcess || undefined,
+          autoSavedMemory: finalData?.autoSavedMemory || null,
+        };
+
+        if (!assistantMessageAdded) {
+          if (isTemporaryChat) {
+            setTemporarySession((prev) => ({
+              ...prev,
+              messages: [...prev.messages, assistantMessage],
+              updatedAt: Date.now(),
+            }));
+          } else {
+            setSessions((prev) =>
+              prev.map((s) =>
+                s.id === targetSessionId
+                  ? {
+                      ...s,
+                      messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), assistantMessage],
+                      updatedAt: Date.now(),
+                    }
+                  : s
+              )
+            );
+          }
+        } else {
+          const updateFinalMsg = (msgs: ChatMessage[]) =>
+            msgs.map((m) => (m.id === assistantMsgId ? assistantMessage : m));
+          if (isTemporaryChat) {
+            setTemporarySession((prev) => ({
+              ...prev,
+              messages: updateFinalMsg(prev.messages),
+              updatedAt: Date.now(),
+            }));
+          } else {
+            setSessions((prev) =>
+              prev.map((s) => (s.id === targetSessionId ? { ...s, messages: updateFinalMsg(s.messages) } : s))
+            );
+          }
+        }
+      } else {
+        const data = await response.json();
+
+        const assistantMessage: ChatMessage = {
+          id: assistantMsgId,
+          role: 'assistant',
+          content: data.text || data.reply || "I'm ready to help. What would you like to explore next?",
+          timestamp: Date.now(),
+          sources: data.sources || [],
+          webSearchQueries: data.webSearchQueries || [],
+          vectorMemories: data.recalledMemories || [],
+          codeBlocks: data.codeBlocks || [],
+          images: data.images || [],
+          imagePrompt: data.imagePrompt || undefined,
+          thinkingProcess: data.thinkingProcess || undefined,
+          autoSavedMemory: data.autoSavedMemory || null,
+        };
+
+        if (isTemporaryChat) {
+          setTemporarySession((prev) => ({
+            ...prev,
+            messages: [...prev.messages, assistantMessage],
+            updatedAt: Date.now(),
+          }));
+        } else {
+          setSessions((prev) =>
+            prev.map((s) =>
+              s.id === targetSessionId
+                ? {
+                    ...s,
+                    messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), assistantMessage],
+                    updatedAt: Date.now(),
+                  }
+                : s
+            )
+          );
+        }
       }
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('AbortError')) {
@@ -716,6 +891,7 @@ export default function App() {
         }}
         onDeleteSession={handleDeleteSession}
         onRenameSession={handleRenameSession}
+        onTogglePinSession={handleTogglePinSession}
         onSelectPrompt={(prompt) => {
           if (isTemporaryChat) {
             setIsTemporaryChat(false);

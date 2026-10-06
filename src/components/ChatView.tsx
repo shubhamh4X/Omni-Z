@@ -39,7 +39,6 @@ import {
   GraduationCap,
   MoreHorizontal,
   ChevronRight,
-  Music2,
   Terminal,
   Sigma,
   Database,
@@ -98,33 +97,7 @@ const NotebookOutlineIcon: React.FC<{ className?: string }> = ({ className = "w-
   </svg>
 );
 
-const FrameImageIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="3" y="3" width="18" height="18" rx="4" />
-    <circle cx="8.5" cy="8.5" r="1.5" />
-    <path d="M21 15l-5-5L5 21" />
-  </svg>
-);
-
 export const ModelDnaIcon = Dna;
-
-const VideoClapperIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="2" y="4" width="20" height="16" rx="3" />
-    <path d="M6 4l2 4" />
-    <path d="M11 4l2 4" />
-    <path d="M16 4l2 4" />
-    <line x1="2" y1="8" x2="22" y2="8" />
-  </svg>
-);
-
-const CanvasSquareIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="3" y="3" width="18" height="18" rx="3" />
-    <line x1="12" y1="8" x2="12" y2="16" />
-    <line x1="8" y1="12" x2="16" y2="12" />
-  </svg>
-);
 
 const DeepResearchAtomIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -1173,7 +1146,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       <div
         className={`w-full transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] relative z-20 ${
           isInitialState
-            ? '-translate-y-[calc(38vh)] sm:-translate-y-[calc(42vh)] px-4 py-2'
+            ? '-translate-y-[calc(50vh-40px)] sm:-translate-y-[calc(50vh-45px)] px-4 py-2'
             : 'translate-y-0 p-4 bg-gradient-to-t from-[#131314] via-[#131314]/95 to-transparent'
         }`}
       >
@@ -1524,29 +1497,31 @@ export const ChatView: React.FC<ChatViewProps> = ({
           >
 
             <div className="relative flex items-center shrink-0" ref={attachMenuRef}>
-              <Tooltip content="Add files and tools" position="top" align="start">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAttachMenuOpen(!attachMenuOpen);
-                    setActiveSubmenu(null);
-                  }}
-                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0 ${
-                    attachMenuOpen
-                      ? 'bg-[#2d2f33] text-white rotate-45'
-                      : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
-                  }`}
-                  aria-label="Add to prompt / attach files & tools"
-                  aria-expanded={attachMenuOpen}
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachMenuOpen(!attachMenuOpen);
+                  setActiveSubmenu(null);
+                }}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer shrink-0 ${
+                  attachMenuOpen
+                    ? 'bg-[#2d2f33] text-white rotate-45'
+                    : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
+                }`}
+                aria-label="Add to prompt / attach files & tools"
+                aria-expanded={attachMenuOpen}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
 
               {attachMenuOpen && (
-                <div className="absolute left-0 bottom-full mb-3.5 z-50 flex items-start animate-in fade-in zoom-in-95 duration-150">
+                <div className={`absolute left-0 z-50 flex animate-in fade-in zoom-in-95 duration-150 ${
+                  isInitialState ? 'top-full mt-2.5 items-start' : 'bottom-full mb-2.5 items-end'
+                }`}>
 
-                  <div className="w-[230px] sm:w-[245px] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_16px_48px_rgba(0,0,0,0.85)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md">
+                  <div className={`w-[230px] sm:w-[245px] overflow-y-auto rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_16px_48px_rgba(0,0,0,0.85)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md ${
+                    isInitialState ? 'max-h-[min(460px,calc(54vh-20px))]' : 'max-h-[min(460px,calc(100vh-140px))]'
+                  }`}>
 
                     <div className="flex items-center gap-2.5 px-3.5 py-1.5 mb-1 text-[#e3e3e3] font-medium border-b border-[#2d2f33]">
                       <button
@@ -1620,58 +1595,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
                       onClick={() => {
-                        setShowImageStudio(true);
-                        setAttachMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
-                    >
-                      <FrameImageIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
-                      <span>Create image</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onMouseEnter={() => setActiveSubmenu(null)}
-                      onClick={() => {
-                        insertPromptTemplate('Create a cinematic video storyboard, scene-by-scene script, and camera motion directions for: ');
-                        setAttachMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
-                    >
-                      <VideoClapperIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
-                      <span>Create video</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onMouseEnter={() => setActiveSubmenu(null)}
-                      onClick={() => {
-                        insertPromptTemplate('Compose an original music track structure, chord progressions, tempo, instrumentation, and lyric sheet for: ');
-                        setAttachMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
-                    >
-                      <Music2 className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0 stroke-[1.8]" />
-                      <span>Create music</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onMouseEnter={() => setActiveSubmenu(null)}
-                      onClick={() => {
-                        insertPromptTemplate('Create an interactive modular workspace and code architecture canvas for: ');
-                        setAttachMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
-                    >
-                      <CanvasSquareIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
-                      <span>Canvas</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onMouseEnter={() => setActiveSubmenu(null)}
-                      onClick={() => {
                         insertPromptTemplate('Conduct an exhaustive Deep Research investigation with multi-source verified findings on: ');
                         setAttachMenuOpen(false);
                       }}
@@ -1710,7 +1633,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   {activeSubmenu === 'uploads' && (
                     <div
                       onMouseEnter={() => setActiveSubmenu('uploads')}
-                      className="ml-2.5 w-[200px] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_20px_50px_rgba(0,0,0,0.9)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md animate-in fade-in-0 zoom-in-95 slide-in-from-left-3 duration-200 ease-out origin-left"
+                      className={`ml-2.5 w-[200px] overflow-y-auto rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_20px_50px_rgba(0,0,0,0.9)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md animate-in fade-in-0 zoom-in-95 slide-in-from-left-3 duration-200 ease-out origin-left ${
+                        isInitialState ? 'max-h-[min(460px,calc(54vh-20px))]' : 'max-h-[min(460px,calc(100vh-140px))]'
+                      }`}
                     >
                       <button
                         type="button"
@@ -1770,7 +1695,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   {activeSubmenu === 'tools' && (
                     <div
                       onMouseEnter={() => setActiveSubmenu('tools')}
-                      className="ml-2.5 w-[220px] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_20px_50px_rgba(0,0,0,0.9)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md animate-in fade-in-0 zoom-in-95 slide-in-from-left-3 duration-200 ease-out origin-left"
+                      className={`ml-2.5 w-[220px] overflow-y-auto rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_20px_50px_rgba(0,0,0,0.9)] py-2 text-[#e3e3e3] text-[13.5px] select-none backdrop-blur-md animate-in fade-in-0 zoom-in-95 slide-in-from-left-3 duration-200 ease-out origin-left ${
+                        isInitialState ? 'max-h-[min(460px,calc(54vh-20px))]' : 'max-h-[min(460px,calc(100vh-140px))]'
+                      }`}
                     >
                       <button
                         type="button"
@@ -1893,51 +1820,49 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 </Tooltip>
               )}
 
-              <Tooltip content={isRecording ? 'Listening... click to stop' : 'Voice dictation'} position="top">
-                <button
-                  type="button"
-                  onClick={handleToggleVoice}
-                  className={`p-2 rounded-full transition-colors cursor-pointer ${
-                    isRecording
-                      ? 'bg-red-500/20 text-red-400 animate-pulse'
-                      : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
-                  }`}
-                  aria-label={isRecording ? 'Listening... click to stop' : 'Voice dictation'}
-                >
-                  {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                </button>
-              </Tooltip>
+              <button
+                type="button"
+                onClick={handleToggleVoice}
+                className={`p-2 rounded-full transition-colors cursor-pointer ${
+                  isRecording
+                    ? 'bg-red-500/20 text-red-400 animate-pulse'
+                    : 'hover:bg-[#282a2c] text-[#c4c7c5] hover:text-white'
+                }`}
+                aria-label={isRecording ? 'Listening... click to stop' : 'Voice dictation'}
+              >
+                {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
 
               <div className="relative" ref={modelDropdownRef}>
-                <Tooltip content="Select Model Intelligence" position="top" align="end">
-                  <button
-                    type="button"
-                    onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#282a2c] text-xs font-medium transition-colors cursor-pointer ${
-                      isDeepThinkingActive
-                        ? 'border border-purple-500/50 bg-[#1e1528] text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.18)]'
-                        : 'border border-[#2d2f33] bg-[#18191b] text-[#e3e3e3]'
-                    }`}
-                    aria-label="Select Model Intelligence"
-                    aria-expanded={modelDropdownOpen}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${
-                      isDeepThinkingActive ? 'bg-purple-400 animate-pulse' : (currentModel.dotColor || 'bg-[#8ab4f8]')
-                    }`}></span>
-                    <span className="hidden sm:inline text-xs">
-                      {currentModel.name}
-                      {isDeepThinkingActive && <span className="ml-1 text-purple-300 font-normal">+ Deep Think</span>}
-                    </span>
-                    <span className="sm:hidden text-xs">
-                      {currentModel.shortName || 'Model'}
-                      {isDeepThinkingActive && <span className="ml-0.5 text-purple-300">+ Think</span>}
-                    </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-[#80868b] transition-transform duration-200 ${modelDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                </Tooltip>
+                <button
+                  type="button"
+                  onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-[#282a2c] text-xs font-medium transition-colors cursor-pointer ${
+                    isDeepThinkingActive
+                      ? 'border border-purple-500/50 bg-[#1e1528] text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.18)]'
+                      : 'border border-[#2d2f33] bg-[#18191b] text-[#e3e3e3]'
+                  }`}
+                  aria-label="Select Model Intelligence"
+                  aria-expanded={modelDropdownOpen}
+                >
+                  <span className={`w-2 h-2 rounded-full ${
+                    isDeepThinkingActive ? 'bg-purple-400 animate-pulse' : (currentModel.dotColor || 'bg-[#8ab4f8]')
+                  }`}></span>
+                  <span className="hidden sm:inline text-xs">
+                    {currentModel.name}
+                    {isDeepThinkingActive && <span className="ml-1 text-purple-300 font-normal">+ Deep Think</span>}
+                  </span>
+                  <span className="sm:hidden text-xs">
+                    {currentModel.shortName || 'Model'}
+                    {isDeepThinkingActive && <span className="ml-0.5 text-purple-300">+ Think</span>}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-[#80868b] transition-transform duration-200 ${modelDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
 
                 {modelDropdownOpen && (
-                  <div className="absolute right-0 bottom-full mb-3.5 w-[340px] sm:w-[390px] max-w-[calc(100vw-32px)] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_12px_40px_rgba(0,0,0,0.65)] p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className={`absolute right-0 z-50 w-[340px] sm:w-[390px] max-w-[calc(100vw-32px)] overflow-y-auto rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_12px_40px_rgba(0,0,0,0.65)] p-2 animate-in fade-in zoom-in-95 duration-150 ${
+                    isInitialState ? 'top-full mt-3.5 max-h-[min(460px,calc(54vh-20px))]' : 'bottom-full mb-3.5 max-h-[calc(100vh-140px)]'
+                  }`}>
 
                     <div className="px-3 py-2 border-b border-[#2d2f33] flex items-center justify-between">
                       <div className="flex items-center gap-2">

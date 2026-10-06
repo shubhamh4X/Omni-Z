@@ -22,7 +22,9 @@
         "userId": { "type": "string", "description": "ID of the owner user." },
         "title": { "type": "string", "description": "Conversation title." },
         "createdAt": { "type": "number", "description": "Epoch timestamp." },
-        "updatedAt": { "type": "number", "description": "Epoch timestamp." }
+        "updatedAt": { "type": "number", "description": "Epoch timestamp." },
+        "isPinned": { "type": "boolean", "description": "Whether the session is pinned." },
+        "pinnedAt": { "type": "number", "description": "Timestamp when pinned." }
       },
       "required": ["id", "userId", "title"]
     }

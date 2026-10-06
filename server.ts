@@ -223,7 +223,50 @@ function isExplicitImageRequest(message: string): boolean {
   return explicitImagePatterns.some((pattern) => pattern.test(text));
 }
 
-async function generateWithRetry(params: any, customClientKey?: string, maxRetries = 2): Promise<any> {
+async function generateStreamWithRetry(params: any, customClientKey?: string): Promise<{ stream: any; modelUsed: string }> {
+  const client = customClientKey
+    ? new GoogleGenAI({
+        apiKey: customClientKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      })
+    : getAiClient();
+
+  const requestedModel = params.model;
+  const safeModel = (requestedModel && !requestedModel.includes('pro') && !requestedModel.includes('image'))
+    ? requestedModel
+    : 'gemini-3.8-flash';
+
+  const candidateModels = Array.from(new Set([
+    safeModel,
+    'gemini-3.8-flash',
+    'gemini-3.1-flash-lite',
+  ]));
+
+  for (const currentModel of candidateModels) {
+    try {
+      const stream = await client.models.generateContentStream({
+        ...params,
+        model: currentModel,
+      });
+      return { stream, modelUsed: currentModel };
+    } catch (err: any) {
+      if (params.config?.tools && params.config.tools.length > 0) {
+        try {
+          const stream = await client.models.generateContentStream({
+            ...params,
+            model: currentModel,
+            config: { ...params.config, tools: undefined },
+          });
+          return { stream, modelUsed: currentModel };
+        } catch {}
+      }
+      continue;
+    }
+  }
+  throw new Error('All streaming candidates failed');
+}
+
+async function generateWithRetry(params: any, customClientKey?: string, maxRetries = 1): Promise<any> {
   let lastError: any = null;
   const client = customClientKey
     ? new GoogleGenAI({
@@ -239,10 +282,8 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
 
   const candidateModels = Array.from(new Set([
     safeModel,
-    'gemini-3.1-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-flash-latest',
     'gemini-3.8-flash',
+    'gemini-3.1-flash-lite',
   ]));
 
   for (let modelIdx = 0; modelIdx < candidateModels.length; modelIdx++) {
@@ -831,12 +872,123 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       maxOutputTokens: 8192,
     };
 
-    const shouldSearch = enableSearch && !isCasualGreeting && !isDeveloperQuery;
+    const isLiveInfoQuery = /search|news|latest|today|current|price|weather|who is|what is the price|stock|live|score|release date|when did|event|update|202[5-9]/i.test(trimmedMessage);
+    const shouldSearch = Boolean(enableSearch && isLiveInfoQuery && !isCasualGreeting && !isDeveloperQuery);
     if (shouldSearch) {
       config.tools = [{ googleSearch: {} }];
     }
 
     const targetModel = 'gemini-3.8-flash';
+
+    const wantsStream = Boolean(req.body.stream || req.headers.accept?.includes('text/event-stream'));
+    if (wantsStream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      try {
+        const { stream: aiStream, modelUsed } = await generateStreamWithRetry(
+          {
+            model: targetModel,
+            contents,
+            config,
+          },
+          clientProvidedKey
+        );
+
+        let fullText = '';
+        let groundingMetadata: any = null;
+
+        for await (const chunk of aiStream) {
+          const chunkText = chunk.text || '';
+          if (chunkText) {
+            fullText += chunkText;
+            res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunkText })}\n\n`);
+          }
+          if (chunk.candidates?.[0]?.groundingMetadata) {
+            groundingMetadata = chunk.candidates[0].groundingMetadata;
+          }
+        }
+
+        const groundingChunks = groundingMetadata?.groundingChunks || [];
+        const webSearchQueries = groundingMetadata?.webSearchQueries || [];
+        const sources: Array<{ title: string; url: string; snippet?: string }> = [];
+        if (Array.isArray(groundingChunks)) {
+          for (const chunk of groundingChunks) {
+            if (chunk.web?.uri) {
+              sources.push({
+                title: chunk.web.title || chunk.web.uri,
+                url: chunk.web.uri,
+              });
+            }
+          }
+        }
+        const uniqueSources = Array.from(new Map(sources.map((s) => [s.url, s])).values());
+
+        const codeBlocks: Array<{ language: string; code: string }> = [];
+        const codeRegex = /```([a-zA-Z0-9_\-]+)?\n([\s\S]*?)```/g;
+        let match;
+        while ((match = codeRegex.exec(fullText)) !== null) {
+          codeBlocks.push({
+            language: (match[1] || 'text').toLowerCase(),
+            code: match[2].trim(),
+          });
+        }
+
+        let cleanText = fullText;
+        let thinkingProcess: string | undefined = undefined;
+        const thinkingMatch = cleanText.match(/<thinking>([\s\S]*?)<\/thinking>/i);
+        if (thinkingMatch) {
+          thinkingProcess = thinkingMatch[1].trim();
+          cleanText = cleanText.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').trim();
+        }
+
+        const generatedImages: string[] = [];
+        let detectedImagePrompt: string | null = null;
+        const imagePromptTagMatch = cleanText.match(/\[IMAGE_PROMPT:\s*([\s\S]*?)\]/i);
+        let extractedImagePrompt: string | null = null;
+        if (imagePromptTagMatch) {
+          extractedImagePrompt = imagePromptTagMatch[1].trim();
+          cleanText = cleanText.replace(/\[IMAGE_PROMPT:\s*[\s\S]*?\]/gi, '').trim();
+        }
+        if (cleanText.includes('dalle.text2im') || cleanText.includes('"action_input"') || cleanText.includes('"action":')) {
+          cleanText = cleanText.replace(/\{[\s\S]*"action"[\s\S]*\}/, '').trim();
+          cleanText = cleanText.replace(/\{[\s\S]*"prompt"[\s\S]*\}/, '').trim();
+        }
+
+        if (isExplicitImageRequest(message)) {
+          const finalPrompt = (extractedImagePrompt || message || '').trim();
+          if (finalPrompt) {
+            detectedImagePrompt = finalPrompt;
+            try {
+              const imageResult = await generateAiImage(finalPrompt, imageAspectRatio);
+              if (imageResult?.url) {
+                generatedImages.push(imageResult.url);
+                if (!cleanText || cleanText.length < 5) {
+                  cleanText = `Here is your high-fidelity generated artwork for **${message}**:`;
+                }
+              }
+            } catch {}
+          }
+        }
+
+        res.write(`data: ${JSON.stringify({
+          type: 'done',
+          text: cleanText,
+          thinkingProcess,
+          images: generatedImages,
+          imagePrompt: detectedImagePrompt || undefined,
+          sources: uniqueSources,
+          webSearchQueries,
+          codeBlocks,
+          model: modelUsed,
+        })}\n\n`);
+        res.end();
+        return;
+      } catch (streamErr: any) {
+        console.warn('Stream fallback to standard gen:', streamErr?.message);
+      }
+    }
 
     const response = await generateWithRetry(
       {
