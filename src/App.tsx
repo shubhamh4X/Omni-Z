@@ -573,6 +573,7 @@ export default function App() {
         const decoder = new TextDecoder('utf-8');
         let accumulatedText = '';
         let finalData: any = null;
+        let streamError: string | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -604,10 +605,16 @@ export default function App() {
                   }
                 } else if (parsed.type === 'done') {
                   finalData = parsed;
+                } else if (parsed.type === 'error') {
+                  streamError = parsed.error || 'A streaming error occurred';
                 }
               } catch {}
             }
           }
+        }
+
+        if (streamError && !accumulatedText && !finalData?.text) {
+          throw new Error(streamError);
         }
 
         const resolvedText = finalData?.text || accumulatedText || "I'm ready to help. What would you like to explore next?";

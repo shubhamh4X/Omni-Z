@@ -47,13 +47,50 @@ import {
   FolderPlus,
   Sparkles,
   FileUp,
-  Dna
+  Dna,
+  AlertCircle,
+  CheckCircle2,
+  FileSpreadsheet,
+  Presentation,
+  FileCode,
+  LogOut,
+  FolderOpen
 } from 'lucide-react';
 import { ChatMessage, Attachment } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { DnaRingLogo } from './DnaRingLogo';
 import { TemporaryChatIcon } from './TemporaryChatButton';
 import { Tooltip } from './Tooltip';
+import { useAuth } from '../context/AuthContext';
+import { 
+  fetchDriveFiles, 
+  fetchDriveFileContent, 
+  formatDriveFileSize, 
+  formatDriveModifiedDate, 
+  DriveFile 
+} from '../services/googleDrive';
+import { LegalModal } from './LegalModal';
+
+const GoogleColorIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
+  <svg viewBox="0 0 48 48" className={className}>
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    <path fill="none" d="M0 0h48v48H0z" />
+  </svg>
+);
+
+const GoogleDriveColorIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+  <svg viewBox="0 0 87.3 78" className={className}>
+    <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+    <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44c-.8 1.4-1.2 2.95-1.2 4.5h27.5z" fill="#00ac47"/>
+    <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+    <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+    <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+    <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+  </svg>
+);
 
 const GoogleDriveOutlineIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -162,57 +199,137 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [activeSubmenu, setActiveSubmenu] = useState<'uploads' | 'tools' | null>(null);
+  const { user, accessToken, isDriveConnected, driveStatus, driveEmail, connectDrive, disconnectDrive } = useAuth();
+
   const [showDriveModal, setShowDriveModal] = useState(false);
   const [driveSearchQuery, setDriveSearchQuery] = useState('');
   const [driveTab, setDriveTab] = useState<'recent' | 'my-drive' | 'shared'>('recent');
+  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
+  const [isConnectingDrive, setIsConnectingDrive] = useState(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
+  const [attachingDriveFileId, setAttachingDriveFileId] = useState<string | null>(null);
 
+  const [showImportCodeModal, setShowImportCodeModal] = useState(false);
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [isImportingGithub, setIsImportingGithub] = useState(false);
+  const [githubImportError, setGithubImportError] = useState<string | null>(null);
+
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState<'privacy' | 'terms' | 'google-disclosure'>('privacy');
+
+  const cancelDriveConnectRef = useRef(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
   const codeFileInputRef = useRef<HTMLInputElement>(null);
+  const folderFileInputRef = useRef<HTMLInputElement>(null);
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const notebookFileInputRef = useRef<HTMLInputElement>(null);
 
-  const sampleDriveFiles = [
-    {
-      id: 'gdoc_1',
-      name: 'Omni Z Product Architecture & System Blueprint.gdoc',
-      type: 'application/vnd.google-apps.document',
-      size: 245000,
-      updatedAt: 'Today, 2:15 PM',
-      snippet: 'Complete technical specification covering vector DB, multi-model cascade, and Python execution sandbox.',
-    },
-    {
-      id: 'gsheet_1',
-      name: 'Financial Projections & API Unit Economics 2026.gsheet',
-      type: 'application/vnd.google-apps.spreadsheet',
-      size: 512000,
-      updatedAt: 'Yesterday',
-      snippet: 'Quarterly breakdown of token usage, compute tiers, margin analysis, and enterprise revenue forecasts.',
-    },
-    {
-      id: 'gdoc_2',
-      name: 'Autonomous Agent Research & Grounding Benchmark.gdoc',
-      type: 'application/vnd.google-apps.document',
-      size: 180000,
-      updatedAt: '3 days ago',
-      snippet: 'Empirical evaluation of tool-augmented LLM reasoning, chain of thought verification, and factual latency.',
-    },
-    {
-      id: 'gdoc_3',
-      name: 'Executive Launch Strategy & Go-To-Market Plan.gdoc',
-      type: 'application/vnd.google-apps.document',
-      size: 320000,
-      updatedAt: 'May 12, 2026',
-      snippet: 'Strategic launch phases, developer community onboarding, social campaigns, and benchmark publications.',
-    },
-    {
-      id: 'gsheet_2',
-      name: 'Distributed Systems Latency & Reliability Matrix.gsheet',
-      type: 'application/vnd.google-apps.spreadsheet',
-      size: 410000,
-      updatedAt: 'Apr 28, 2026',
-      snippet: 'P99 response latency benchmarks across model tiers, vector retrieval embeddings, and sandboxed runtimes.',
-    },
-  ];
+  const loadDriveFiles = useCallback(async (userIdOrToken: string, tab: 'recent' | 'my-drive' | 'shared', queryStr: string) => {
+    if (!userIdOrToken) return;
+    setIsLoadingDriveFiles(true);
+    setDriveError(null);
+    try {
+      const result = await fetchDriveFiles(userIdOrToken, { tab, query: queryStr });
+      setDriveFiles(result.files);
+    } catch (err: any) {
+      if (
+        err.message === 'UNAUTHORIZED_DRIVE_SESSION' || 
+        err.message === 'GOOGLE_DRIVE_SESSION_EXPIRED' || 
+        err.message === 'GOOGLE_DRIVE_REVOKED'
+      ) {
+        disconnectDrive();
+        setDriveError('Your Google Drive authorization has expired. Please reconnect to access your files.');
+      } else {
+        setDriveError(err?.message || 'Failed to load files from Google Drive.');
+      }
+    } finally {
+      setIsLoadingDriveFiles(false);
+    }
+  }, [disconnectDrive]);
+
+  useEffect(() => {
+    if (showDriveModal && (isDriveConnected || accessToken) && (user?.uid || accessToken)) {
+      const targetId = user?.uid || accessToken || '';
+      const timer = setTimeout(() => {
+        loadDriveFiles(targetId, driveTab, driveSearchQuery);
+      }, driveSearchQuery ? 350 : 0);
+      return () => clearTimeout(timer);
+    }
+  }, [showDriveModal, isDriveConnected, accessToken, user?.uid, driveTab, driveSearchQuery, loadDriveFiles]);
+
+  const handleConnectDrive = async () => {
+    cancelDriveConnectRef.current = false;
+    setIsConnectingDrive(true);
+    setDriveError(null);
+    try {
+      const success = await connectDrive();
+      if (cancelDriveConnectRef.current) return;
+      if (success) {
+        const targetId = user?.uid || accessToken || '';
+        await loadDriveFiles(targetId, driveTab, driveSearchQuery);
+      }
+    } catch (err: any) {
+      if (cancelDriveConnectRef.current) return;
+      setDriveError(err?.message || 'Failed to connect Google Drive.');
+    } finally {
+      setIsConnectingDrive(false);
+    }
+  };
+
+  const handleAddFromDriveClick = async () => {
+    setShowDriveModal(true);
+    setAttachMenuOpen(false);
+    if (!isDriveConnected && !accessToken) {
+      await handleConnectDrive();
+    }
+  };
+
+  const handleCancelDriveConnect = () => {
+    cancelDriveConnectRef.current = true;
+    setIsConnectingDrive(false);
+    setDriveError(null);
+  };
+
+  const handleSelectDriveFile = async (file: DriveFile) => {
+    const targetId = user?.uid || accessToken;
+    if (!targetId) return;
+    setAttachingDriveFileId(file.id);
+    try {
+      const { textContent, snippet, dataUrl } = await fetchDriveFileContent(targetId, file);
+      const parsedSize = typeof file.size === 'string' ? parseInt(file.size, 10) : (file.size || 0);
+      setAttachments((prev) => [
+        ...prev,
+        {
+          id: `drive_${Date.now()}_${file.id}`,
+          name: file.name,
+          type: file.mimeType,
+          size: parsedSize,
+          textContent,
+          dataUrl,
+        },
+      ]);
+      setShowDriveModal(false);
+      textareaRef.current?.focus();
+    } catch (err: any) {
+      console.warn('Error attaching drive file:', err);
+      const parsedSize = typeof file.size === 'string' ? parseInt(file.size, 10) : (file.size || 0);
+      setAttachments((prev) => [
+        ...prev,
+        {
+          id: `drive_${Date.now()}_${file.id}`,
+          name: file.name,
+          type: file.mimeType,
+          size: parsedSize,
+          textContent: `[GOOGLE DRIVE ATTACHMENT: "${file.name}"]\nFile ID: ${file.id}\nType: ${file.mimeType}\nLink: ${file.webViewLink || ''}\n[END OF ATTACHMENT]`,
+        },
+      ]);
+      setShowDriveModal(false);
+      textareaRef.current?.focus();
+    } finally {
+      setAttachingDriveFileId(null);
+    }
+  };
 
   const modelOptions = [
     {
@@ -560,6 +677,146 @@ export const ChatView: React.FC<ChatViewProps> = ({
     });
   }, []);
 
+  const handleImportGitHub = async () => {
+    const trimmed = githubRepoUrl.trim();
+    if (!trimmed) return;
+
+    let owner = '';
+    let repo = '';
+    let branch = '';
+
+    const urlMatch = trimmed.match(/github\.com\/([^\/]+)\/([^\/\?#]+)(?:\/tree\/([^\/\?#]+))?/i);
+    const shortMatch = trimmed.match(/^([a-zA-Z0-9_\-\.]+)\/([a-zA-Z0-9_\-\.]+)$/);
+
+    if (urlMatch) {
+      owner = urlMatch[1];
+      repo = urlMatch[2].replace(/\.git$/i, '');
+      branch = urlMatch[3] || '';
+    } else if (shortMatch) {
+      owner = shortMatch[1];
+      repo = shortMatch[2].replace(/\.git$/i, '');
+    } else {
+      setGithubImportError('Please enter a valid GitHub repository URL (e.g. https://github.com/user/repo)');
+      return;
+    }
+
+    setIsImportingGithub(true);
+    setGithubImportError(null);
+
+    try {
+      let repoData: any = null;
+      try {
+        const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+        if (repoRes.ok) {
+          repoData = await repoRes.json();
+          if (!branch && repoData.default_branch) {
+            branch = repoData.default_branch;
+          }
+        }
+      } catch (e) {
+        console.warn('GitHub API info fetch note:', e);
+      }
+
+      let readmeText = '';
+      try {
+        const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/readme`, {
+          headers: { Accept: 'application/vnd.github.v3.raw' },
+        });
+        if (readmeRes.ok) {
+          readmeText = await readmeRes.text();
+        }
+      } catch (e) {
+        console.warn('GitHub API readme fetch note:', e);
+      }
+
+      let contentsSummary = '';
+      try {
+        const contentsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents${branch ? `?ref=${branch}` : ''}`);
+        if (contentsRes.ok) {
+          const items = await contentsRes.json();
+          if (Array.isArray(items)) {
+            contentsSummary = items.slice(0, 30).map((it: any) => `- ${it.type === 'dir' ? '📁' : '📄'} ${it.name}`).join('\n');
+          }
+        }
+      } catch (e) {
+        console.warn('GitHub API contents fetch note:', e);
+      }
+
+      const description = repoData?.description || 'Public GitHub Repository';
+      const stars = repoData?.stargazers_count ?? 0;
+      const language = repoData?.language || 'Various';
+      const targetBranch = branch || repoData?.default_branch || 'main';
+
+      let markdownContent = `# GitHub Repository: ${owner}/${repo}\n\n`;
+      markdownContent += `- **URL**: https://github.com/${owner}/${repo}\n`;
+      markdownContent += `- **Stars**: ⭐ ${stars}\n`;
+      markdownContent += `- **Primary Language**: ${language}\n`;
+      markdownContent += `- **Branch**: ${targetBranch}\n`;
+      if (description) {
+        markdownContent += `- **About**: ${description}\n\n`;
+      }
+      if (contentsSummary) {
+        markdownContent += `### Project Structure:\n${contentsSummary}\n\n`;
+      }
+      if (readmeText) {
+        markdownContent += `### README.md:\n\`\`\`markdown\n${readmeText.slice(0, 8000)}\n\`\`\`\n`;
+      }
+
+      const newAttachment: Attachment = {
+        id: `gh_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: `${owner}/${repo} (GitHub)`,
+        type: 'text/markdown',
+        size: Math.max(1024, markdownContent.length),
+        textContent: markdownContent,
+      };
+
+      setAttachments((prev) => [...prev, newAttachment]);
+      setShowImportCodeModal(false);
+      setGithubRepoUrl('');
+      setGithubImportError(null);
+    } catch (err: any) {
+      console.error('Failed to import GitHub repo:', err);
+      const fallbackAttachment: Attachment = {
+        id: `gh_${Date.now()}`,
+        name: `${owner}/${repo} (GitHub)`,
+        type: 'text/markdown',
+        size: 512,
+        textContent: `GitHub Repository: https://github.com/${owner}/${repo}\nPlease analyze this repository, its architecture, and codebase.`,
+      };
+      setAttachments((prev) => [...prev, fallbackAttachment]);
+      setShowImportCodeModal(false);
+      setGithubRepoUrl('');
+    } finally {
+      setIsImportingGithub(false);
+    }
+  };
+
+  const handleFolderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+    const filteredFiles = fileArray.filter((f) => {
+      const relPath = (f as any).webkitRelativePath || f.name;
+      if (
+        relPath.includes('node_modules/') ||
+        relPath.includes('.git/') ||
+        relPath.includes('dist/') ||
+        relPath.includes('build/') ||
+        relPath.includes('.next/') ||
+        relPath.includes('__pycache__/')
+      ) {
+        return false;
+      }
+      return /\.(py|ts|tsx|js|jsx|json|sql|cpp|c|h|rs|go|sh|html|css|yaml|yml|md|txt|env|xml|toml|ipynb|svg)$/i.test(f.name);
+    });
+
+    const chosen = filteredFiles.length > 0 ? filteredFiles.slice(0, 25) : fileArray.slice(0, 15);
+    processFileList(chosen);
+    setShowImportCodeModal(false);
+    e.target.value = '';
+  };
+
   const handlePaste = useCallback((e: React.ClipboardEvent | ClipboardEvent) => {
     const clipboardData = (e as React.ClipboardEvent).clipboardData || (e as ClipboardEvent).clipboardData;
     if (!clipboardData) return;
@@ -728,6 +985,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
         onChange={handleFileChange}
         multiple
         accept=".py,.ts,.tsx,.js,.jsx,.json,.sql,.cpp,.c,.h,.rs,.go,.sh,.html,.css,.yaml,.yml"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={folderFileInputRef}
+        onChange={handleFolderUpload}
+        {...({ webkitdirectory: '', directory: '' } as any)}
+        multiple
         className="hidden"
       />
       <input
@@ -1554,10 +1819,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     <button
                       type="button"
                       onMouseEnter={() => setActiveSubmenu(null)}
-                      onClick={() => {
-                        setShowDriveModal(true);
-                        setAttachMenuOpen(false);
-                      }}
+                      onClick={handleAddFromDriveClick}
                       className="w-full flex items-center gap-3.5 px-3.5 py-2 hover:bg-[#282a2c] text-left transition-colors cursor-pointer group"
                     >
                       <GoogleDriveOutlineIcon className="w-4 h-4 text-[#c4c7c5] group-hover:text-white shrink-0" />
@@ -1667,7 +1929,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <button
                         type="button"
                         onClick={() => {
-                          codeFileInputRef.current?.click();
+                          setShowImportCodeModal(true);
                           setAttachMenuOpen(false);
                           setActiveSubmenu(null);
                         }}
@@ -2009,9 +2271,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
               )}
             </div>
           </form>
+        </div>
+      </div>
 
-          <div className="text-[11px] text-[#80868b] text-center pt-0.5">
-            Omni Z can make mistakes. Verify important facts with live sources.
+      {/* Bottom Footer - Full width edge-to-edge without top border line */}
+      <div className="w-full relative z-20 px-4 sm:px-6 pb-2.5 pt-1 text-[11px] text-[#80868b]">
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center">
+            <span>Verify important facts with live sources</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <a
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#9aa0a6] hover:text-[#8ab4f8] transition-colors cursor-pointer hover:underline"
+            >
+              Privacy Policy
+            </a>
+            <span>&bull;</span>
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#9aa0a6] hover:text-[#8ab4f8] transition-colors cursor-pointer hover:underline"
+            >
+              Terms of Service
+            </a>
           </div>
         </div>
       </div>
@@ -2077,112 +2363,362 @@ export const ChatView: React.FC<ChatViewProps> = ({
             className="w-full max-w-xl rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_24px_64px_rgba(0,0,0,0.85)] overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
-
+            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#2d2f33]">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-[#282a2c] flex items-center justify-center border border-[#3c4043]">
-                  <GoogleDriveOutlineIcon className="w-5 h-5 text-[#8ab4f8]" />
+                  <GoogleDriveColorIcon className="w-5 h-5 shrink-0" />
                 </div>
                 <div>
-                  <h3 className="text-base font-medium text-[#f1f3f4]">Google Drive</h3>
-                  <p className="text-xs text-[#9aa0a6]">Select documents or sheets to attach to your prompt</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-medium text-[#f1f3f4]">Google Drive</h3>
+                    {(isDriveConnected || driveStatus === 'connected' || accessToken) ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Google Drive connected
+                      </span>
+                    ) : (driveStatus === 'authorizing' || isConnectingDrive) ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        Connecting Google Drive...
+                      </span>
+                    ) : (driveStatus === 'error' || driveError) ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                        Couldn't connect Google Drive
+                      </span>
+                    ) : (driveStatus === 'expired' || driveStatus === 'revoked') ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        Authorization expired
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#282a2c] text-[#9aa0a6] border border-[#3c4043]">
+                        Connect Google Drive
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[#9aa0a6]">
+                    {(isDriveConnected || driveStatus === 'connected' || accessToken)
+                      ? 'Browse and select files from your Google Drive'
+                      : 'Connect your Google Drive account to import files'}
+                  </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowDriveModal(false)}
-                className="p-1.5 rounded-full hover:bg-[#282a2c] text-[#9aa0a6] hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="px-5 pt-3 pb-2 border-b border-[#2d2f33] space-y-2.5">
-              <div className="relative flex items-center bg-[#131314] rounded-xl px-3 py-2 border border-[#2d2f33]">
-                <Search className="w-4 h-4 text-[#80868b] mr-2 shrink-0" />
-                <input
-                  type="text"
-                  value={driveSearchQuery}
-                  onChange={(e) => setDriveSearchQuery(e.target.value)}
-                  placeholder="Search in Drive..."
-                  className="bg-transparent text-sm text-[#e3e3e3] placeholder-[#80868b] focus:outline-none flex-1"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 text-xs">
-                {(['recent', 'my-drive', 'shared'] as const).map((tab) => (
+              <div className="flex items-center gap-1.5">
+                {(isDriveConnected || driveStatus === 'connected' || accessToken) && (
                   <button
-                    key={tab}
                     type="button"
-                    onClick={() => setDriveTab(tab)}
-                    className={`px-3 py-1.5 rounded-lg capitalize transition-colors cursor-pointer ${
-                      driveTab === tab
-                        ? 'bg-[#282a2c] text-[#8ab4f8] font-medium border border-[#3c4043]'
-                        : 'text-[#9aa0a6] hover:text-[#e3e3e3] hover:bg-[#282a2c]/60'
-                    }`}
+                    onClick={() => loadDriveFiles(user?.uid || accessToken || '', driveTab, driveSearchQuery)}
+                    disabled={isLoadingDriveFiles}
+                    title="Refresh files"
+                    className="p-1.5 rounded-full hover:bg-[#282a2c] text-[#9aa0a6] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
                   >
-                    {tab.replace('-', ' ')}
+                    <RefreshCw className={`w-4 h-4 ${isLoadingDriveFiles ? 'animate-spin' : ''}`} />
                   </button>
-                ))}
-
+                )}
                 <button
                   type="button"
-                  onClick={() => {
-                    fileInputRef.current?.click();
-                    setShowDriveModal(false);
-                  }}
-                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#8ab4f8]/10 hover:bg-[#8ab4f8]/20 text-[#8ab4f8] transition-colors cursor-pointer font-medium"
+                  onClick={() => setShowDriveModal(false)}
+                  className="p-1.5 rounded-full hover:bg-[#282a2c] text-[#9aa0a6] hover:text-white transition-colors cursor-pointer"
                 >
-                  <FileUp className="w-3.5 h-3.5" />
-                  <span>Upload Local File</span>
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[220px]">
-              {sampleDriveFiles
-                .filter((f) => f.name.toLowerCase().includes(driveSearchQuery.toLowerCase()))
-                .map((file) => (
-                  <div
-                    key={file.id}
-                    onClick={() => {
-                      setAttachments((prev) => [
-                        ...prev,
-                        {
-                          id: `drive_${Date.now()}_${file.id}`,
-                          name: file.name,
-                          type: file.type,
-                          size: file.size,
-                          textContent: `[GOOGLE DRIVE ATTACHMENT: ${file.name}]\nSnippet: ${file.snippet}\nType: Google Workspace Document\nModified: ${file.updatedAt}\n[END OF ATTACHMENT]`,
-                        },
-                      ]);
-                      setShowDriveModal(false);
-                      textareaRef.current?.focus();
-                    }}
-                    className="flex items-center justify-between p-3 rounded-xl hover:bg-[#282a2c] border border-transparent hover:border-[#3c4043] transition-all cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0 pr-3">
-                      <div className="w-8 h-8 rounded-lg bg-[#18191b] border border-[#2d2f33] flex items-center justify-center shrink-0">
-                        {file.name.includes('.gsheet') ? (
-                          <Table className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <FileText className="w-4 h-4 text-[#8ab4f8]" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-[#e3e3e3] truncate group-hover:text-white">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-[#9aa0a6] truncate">{file.snippet}</p>
-                      </div>
-                    </div>
-                    <span className="text-xs text-[#80868b] shrink-0">{file.updatedAt}</span>
-                  </div>
-                ))}
-            </div>
+            {(!isDriveConnected && !accessToken) ? (
+              /* Unconnected state: Ask to connect Google Drive */
+              <div className="p-6 sm:p-7 flex flex-col items-center text-center overflow-y-auto max-h-[calc(85vh-90px)]">
+                <div className="w-16 h-16 rounded-2xl bg-[#282a2c] border border-[#3c4043] flex items-center justify-center mb-4 shadow-xl relative">
+                  <GoogleDriveColorIcon className="w-8 h-8" />
+                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-blue-500 rounded-full border-2 border-[#1e1f20]" />
+                </div>
 
+                <h4 className="text-xl font-bold text-[#f1f3f4] mb-2 tracking-tight">Connect Google Drive</h4>
+                <p className="text-xs text-[#9aa0a6] max-w-md mb-3 leading-relaxed">
+                  Allow Omni Z to access your Google Drive so you can search, browse, and select your documents, spreadsheets, and files directly in chat.
+                </p>
+
+                {(driveEmail || user?.email) && (
+                  <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1e1f20] border border-[#3c4043] text-xs text-[#c4c7c5]">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>Account: <strong className="text-white font-medium">{driveEmail || user?.email}</strong></span>
+                  </div>
+                )}
+
+                {/* Primary Action Button */}
+                <div className="w-full max-w-sm mb-5 flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={handleConnectDrive}
+                    disabled={isConnectingDrive || driveStatus === 'authorizing'}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-white hover:bg-gray-100 text-[#1f1f1f] font-semibold text-sm transition-all shadow-xl hover:shadow-2xl active:scale-98 cursor-pointer disabled:opacity-75 group"
+                  >
+                    {(isConnectingDrive || driveStatus === 'authorizing') ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-[#1f1f1f]" />
+                        <span>Connecting Google Drive...</span>
+                      </>
+                    ) : (
+                      <>
+                        <GoogleColorIcon className="w-4 h-4 shrink-0 group-hover:scale-110 transition-transform" />
+                        <span>Connect Google Drive</span>
+                      </>
+                    )}
+                  </button>
+
+                  {(isConnectingDrive || driveStatus === 'authorizing') && (
+                    <div className="mt-2.5 text-center space-y-1.5 animate-in fade-in duration-200">
+                      <p className="text-[11.5px] text-[#9aa0a6] leading-relaxed max-w-xs">
+                        Connecting your Google Drive account. If a Google sign-in window was opened, please grant permission.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleCancelDriveConnect}
+                        className="text-xs text-[#8ab4f8] hover:text-white underline cursor-pointer font-medium"
+                      >
+                        Cancel / Try Again
+                      </button>
+                    </div>
+                  )}
+
+                  {!isConnectingDrive && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                        setShowDriveModal(false);
+                      }}
+                      className="mt-3 text-xs text-[#8ab4f8] hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FileUp className="w-3.5 h-3.5" />
+                      <span>Or upload files directly from your device</span>
+                    </button>
+                  )}
+                </div>
+
+                {driveError && (
+                  <div className="w-full max-w-md mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between gap-2 text-left animate-in fade-in duration-150">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                      <span className="flex-1">{driveError}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDriveError(null)}
+                      className="text-red-400 hover:text-white shrink-0 p-1 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="w-full max-w-md bg-[#18191b] rounded-xl border border-[#2d2f33] p-3.5 text-left space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check className="w-3 h-3" />
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-medium text-[#e3e3e3] block">Import Docs, Sheets &amp; Presentations</span>
+                      <span className="text-[#9aa0a6]">Seamlessly parse content and tables for reasoning and synthesis</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check className="w-3 h-3" />
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-medium text-[#e3e3e3] block">Direct Google OAuth Authorization</span>
+                      <span className="text-[#9aa0a6]">Secured with official Google authentication and user consent</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-5 h-5 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check className="w-3 h-3" />
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-medium text-[#e3e3e3] block">Safe In-Memory Analysis</span>
+                      <span className="text-[#9aa0a6]">Your files are read in active memory only and never stored permanently</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Connected state: Live Drive file browser */
+              <>
+                <div className="px-5 pt-3 pb-2 border-b border-[#2d2f33] space-y-2.5">
+                  <div className="relative flex items-center bg-[#131314] rounded-xl px-3 py-2 border border-[#2d2f33]">
+                    <Search className="w-4 h-4 text-[#80868b] mr-2 shrink-0" />
+                    <input
+                      type="text"
+                      value={driveSearchQuery}
+                      onChange={(e) => setDriveSearchQuery(e.target.value)}
+                      placeholder="Search files in your Google Drive..."
+                      className="bg-transparent text-sm text-[#e3e3e3] placeholder-[#80868b] focus:outline-none flex-1"
+                    />
+                    {driveSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setDriveSearchQuery('')}
+                        className="text-[#80868b] hover:text-white p-0.5"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs">
+                    {(['recent', 'my-drive', 'shared'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setDriveTab(tab)}
+                        className={`px-3 py-1.5 rounded-lg capitalize transition-colors cursor-pointer ${
+                          driveTab === tab
+                            ? 'bg-[#282a2c] text-[#8ab4f8] font-medium border border-[#3c4043]'
+                            : 'text-[#9aa0a6] hover:text-[#e3e3e3] hover:bg-[#282a2c]/60'
+                        }`}
+                      >
+                        {tab === 'recent' ? 'Recent' : tab === 'my-drive' ? 'My Drive' : 'Shared with me'}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                        setShowDriveModal(false);
+                      }}
+                      className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#8ab4f8]/10 hover:bg-[#8ab4f8]/20 text-[#8ab4f8] transition-colors cursor-pointer font-medium"
+                    >
+                      <FileUp className="w-3.5 h-3.5" />
+                      <span>Upload Local File</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[260px] max-h-[380px]">
+                  {isLoadingDriveFiles ? (
+                    <div className="p-8 flex flex-col items-center justify-center text-center">
+                      <RefreshCw className="w-6 h-6 text-[#8ab4f8] animate-spin mb-3" />
+                      <p className="text-xs text-[#9aa0a6]">Fetching files from Google Drive...</p>
+                    </div>
+                  ) : driveError ? (
+                    <div className="p-6 text-center">
+                      <div className="w-10 h-10 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mx-auto mb-3">
+                        <AlertCircle className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs text-red-400 mb-3">{driveError}</p>
+                      <button
+                        type="button"
+                        onClick={handleConnectDrive}
+                        className="px-4 py-1.5 rounded-lg bg-[#282a2c] hover:bg-[#333538] text-white text-xs font-medium cursor-pointer transition-colors"
+                      >
+                        Reconnect Google Drive
+                      </button>
+                    </div>
+                  ) : driveFiles.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-[#282a2c] text-[#80868b] flex items-center justify-center mx-auto mb-3 border border-[#3c4043]">
+                        <FolderOpen className="w-6 h-6" />
+                      </div>
+                      <p className="text-sm font-medium text-[#e3e3e3] mb-1">No files found</p>
+                      <p className="text-xs text-[#9aa0a6]">
+                        {driveSearchQuery ? `No files match "${driveSearchQuery}"` : 'No files in this Drive view.'}
+                      </p>
+                    </div>
+                  ) : (
+                    driveFiles.map((file) => {
+                      const isAttaching = attachingDriveFileId === file.id;
+                      const formattedSize = formatDriveFileSize(file.size);
+                      const formattedDate = formatDriveModifiedDate(file.modifiedTime);
+
+                      return (
+                        <div
+                          key={file.id}
+                          onClick={() => {
+                            if (!isAttaching) handleSelectDriveFile(file);
+                          }}
+                          className={`flex items-center justify-between p-3 rounded-xl hover:bg-[#282a2c] border border-transparent hover:border-[#3c4043] transition-all cursor-pointer group ${
+                            isAttaching ? 'opacity-70 pointer-events-none bg-[#282a2c]' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0 pr-3">
+                            <div className="w-8 h-8 rounded-lg bg-[#18191b] border border-[#2d2f33] flex items-center justify-center shrink-0">
+                              {file.mimeType === 'application/vnd.google-apps.document' ? (
+                                <FileText className="w-4 h-4 text-[#8ab4f8]" />
+                              ) : file.mimeType === 'application/vnd.google-apps.spreadsheet' ? (
+                                <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                              ) : file.mimeType === 'application/vnd.google-apps.presentation' ? (
+                                <Presentation className="w-4 h-4 text-amber-400" />
+                              ) : file.mimeType === 'application/pdf' ? (
+                                <FileText className="w-4 h-4 text-rose-400" />
+                              ) : file.mimeType.startsWith('image/') ? (
+                                <ImageIcon className="w-4 h-4 text-purple-400" />
+                              ) : file.mimeType.includes('code') || file.mimeType.includes('json') ? (
+                                <FileCode className="w-4 h-4 text-cyan-400" />
+                              ) : (
+                                <FileText className="w-4 h-4 text-[#9aa0a6]" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-[#e3e3e3] truncate group-hover:text-white">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-[#9aa0a6] truncate flex items-center gap-1.5">
+                                {file.owners?.[0]?.displayName && (
+                                  <span>{file.owners[0].displayName}</span>
+                                )}
+                                {formattedSize && <span>• {formattedSize}</span>}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isAttaching ? (
+                              <span className="text-xs text-[#8ab4f8] flex items-center gap-1.5">
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Attaching...</span>
+                              </span>
+                            ) : (
+                              <>
+                                {formattedDate && (
+                                  <span className="text-xs text-[#80868b] group-hover:hidden">
+                                    {formattedDate}
+                                  </span>
+                                )}
+                                <span className="text-xs font-medium text-[#8ab4f8] hidden group-hover:inline-block">
+                                  Select file
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Footer */}
             <div className="px-5 py-3 border-t border-[#2d2f33] bg-[#18191b] flex items-center justify-between text-xs text-[#9aa0a6]">
-              <span>Connected via Cloud Drive</span>
+              {(isDriveConnected || accessToken) ? (
+                <div className="flex items-center gap-2">
+                  <span className="truncate max-w-[220px] text-[#c4c7c5]">
+                    {driveEmail || user?.email || 'Google Drive connected'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={disconnectDrive}
+                    className="text-[#9aa0a6] hover:text-red-400 transition-colors cursor-pointer text-[11px] underline ml-1"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <span>Google Drive Integration</span>
+              )}
               <button
                 type="button"
                 onClick={() => setShowDriveModal(false)}
@@ -2194,6 +2730,119 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
         </div>
       )}
+
+      {showImportCodeModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => {
+            if (!isImportingGithub) {
+              setShowImportCodeModal(false);
+              setGithubImportError(null);
+            }
+          }}
+        >
+          <div 
+            className="w-full max-w-[500px] rounded-2xl bg-[#1e1f20] border border-[#3c4043] shadow-[0_24px_64px_rgba(0,0,0,0.85)] p-6 overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-5">
+              <h3 className="text-xl font-medium text-[#f1f3f4] tracking-tight">Import code</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowImportCodeModal(false);
+                  setGithubImportError(null);
+                }}
+                disabled={isImportingGithub}
+                className="p-1 rounded-full text-[#9aa0a6] hover:text-white hover:bg-[#282a2c] transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Input Row with outlined label and Import pill button */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleImportGitHub();
+              }}
+              className="space-y-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <div className={`relative border rounded-xl px-3.5 pt-3.5 pb-2.5 bg-transparent transition-all ${
+                    githubImportError
+                      ? 'border-red-400 focus-within:ring-1 focus-within:ring-red-400'
+                      : 'border-[#8ab4f8] focus-within:ring-1 focus-within:ring-[#8ab4f8]'
+                  }`}>
+                    <label className="absolute -top-2.5 left-3 bg-[#1e1f20] px-1 text-xs text-[#8ab4f8] font-medium select-none pointer-events-none">
+                      GitHub repository or branch URL
+                    </label>
+                    <input
+                      type="text"
+                      value={githubRepoUrl}
+                      onChange={(e) => {
+                        setGithubRepoUrl(e.target.value);
+                        if (githubImportError) setGithubImportError(null);
+                      }}
+                      placeholder="e.g. https://github.com/user/repo"
+                      className="w-full bg-transparent text-sm text-[#f1f3f4] placeholder-[#80868b] focus:outline-none"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!githubRepoUrl.trim() || isImportingGithub}
+                  className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all shrink-0 cursor-pointer ${
+                    githubRepoUrl.trim() && !isImportingGithub
+                      ? 'bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#041e49] active:scale-95 shadow-sm'
+                      : 'bg-[#282a2c] text-[#80868b] cursor-not-allowed opacity-60'
+                  }`}
+                >
+                  {isImportingGithub ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3.5 h-3.5 border-2 border-[#041e49]/30 border-t-[#041e49] rounded-full animate-spin" />
+                      <span>Import</span>
+                    </div>
+                  ) : (
+                    'Import'
+                  )}
+                </button>
+              </div>
+
+              {githubImportError && (
+                <p className="text-xs text-red-400 pl-1">{githubImportError}</p>
+              )}
+
+              {/* Helper text */}
+              <p className="text-xs text-[#9aa0a6] pl-0.5">
+                Clicking Import will enable GitHub.
+              </p>
+
+              {/* Upload folder action link */}
+              <div className="pt-3">
+                <button
+                  type="button"
+                  onClick={() => folderFileInputRef.current?.click()}
+                  className="text-sm font-medium text-[#8ab4f8] hover:text-[#a8c7fa] hover:underline cursor-pointer transition-colors"
+                >
+                  Upload folder
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <LegalModal
+        isOpen={legalModalOpen}
+        onClose={() => setLegalModalOpen(false)}
+        initialTab={legalModalTab}
+      />
     </div>
   );
 };

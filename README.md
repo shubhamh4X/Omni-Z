@@ -57,7 +57,7 @@ Visit Here : https://omni-z.up.railway.app/
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (version 20 or higher recommended)
-- A [Google Gemini API Key](https://aistudio.google.com/apikey)
+- A [Google Gemini API Key](https://ai.google.dev/)
 - A [Firebase Project](https://console.firebase.google.com/) with Cloud Firestore enabled
 
 ### Installation
@@ -80,7 +80,7 @@ Visit Here : https://omni-z.up.railway.app/
    ```
    Add your credentials to `.env`:
    ```env
-   # Gemini API Key (get one at https://aistudio.google.com/apikey)
+   # Gemini API Key (get one at https://ai.google.dev/)
    GEMINI_API_KEY=your_actual_gemini_api_key
 
    # Base URL for the application (default for local dev)

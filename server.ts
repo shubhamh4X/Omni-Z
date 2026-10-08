@@ -6,6 +6,19 @@ import { fileURLToPath } from 'url';
 import { execFile, spawn } from 'child_process';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import { getPrivacyPolicyHtml, getTermsOfServiceHtml } from './server/legal_pages.js';
+import {
+  generateAuthUrl,
+  verifyState,
+  exchangeCodeForTokens,
+  saveUserTokens,
+  removeUserTokens,
+  getUserDriveStatus,
+  listUserDriveFiles,
+  fetchUserDriveFileContent,
+  resolveRedirectUri,
+  getValidAccessTokenForUser,
+} from './server/drive_service.js';
 
 dotenv.config();
 
@@ -15,9 +28,43 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+function getAuthenticatedUserId(req: Request): string | null {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload && (payload.user_id || payload.sub)) {
+          return payload.user_id || payload.sub;
+        }
+      }
+    } catch {}
+  }
+  return (
+    (req.headers['x-user-id'] as string) ||
+    (req.query.userId as string) ||
+    (req.body?.userId as string) ||
+    null
+  );
+}
+
+app.get(['/privacy', '/privacy-policy'], (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(getPrivacyPolicyHtml());
+});
+
+app.get(['/terms', '/terms-of-service'], (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(getTermsOfServiceHtml());
+});
 
 app.get('/favicon.ico', (_req: Request, res: Response) => {
   const icoPath = path.join(__dirname, 'public', 'favicon.ico');
@@ -33,6 +80,190 @@ app.get('/favicon.ico', (_req: Request, res: Response) => {
   res.redirect('/favicon.svg');
 });
 
+app.get('/api/drive/status', (req: Request, res: Response) => {
+  const userId = getAuthenticatedUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'User ID is required' });
+  }
+  const status = getUserDriveStatus(userId);
+  res.json(status);
+});
+
+app.get('/api/drive/auth-url', (req: Request, res: Response) => {
+  try {
+    const userId = getAuthenticatedUserId(req);
+    const userEmail = (req.query.userEmail as string) || '';
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID is required' });
+    }
+    const redirectUri = resolveRedirectUri(req.get('host'), req.protocol);
+    const authUrl = generateAuthUrl(userId, userEmail, redirectUri);
+    res.json({ url: authUrl, redirectUri });
+  } catch (err: any) {
+    console.warn('[Drive Auth URL Error]:', err?.message || err);
+    res.status(500).json({ error: err.message || 'Failed to generate auth URL' });
+  }
+});
+
+app.get('/api/drive/callback', async (req: Request, res: Response) => {
+  const { code, state, error } = req.query;
+
+  if (error) {
+    const errMsg = String(error);
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+      <body style="background:#131314;color:#f28b82;font-family:sans-serif;padding:30px;text-align:center;">
+        <h3>Google Drive Authorization Notice</h3>
+        <p style="color:#9aa0a6;">${errMsg}</p>
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'GOOGLE_DRIVE_AUTH_ERROR', error: '${errMsg}' }, '*');
+            setTimeout(function(){ window.close(); }, 1200);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  }
+
+  if (!code || !state) {
+    return res.status(400).send('Missing authorization code or state parameter.');
+  }
+
+  const verified = verifyState(String(state));
+  if (!verified) {
+    return res.status(400).send('Invalid or expired OAuth state parameter.');
+  }
+
+  try {
+    const { userId, userEmail, redirectUri } = verified;
+    const tokens = await exchangeCodeForTokens(String(code), redirectUri);
+    saveUserTokens(userId, userEmail, tokens.accessToken, tokens.refreshToken, tokens.expiryDate, tokens.scope);
+
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Google Drive Connected - Omni Z</title></head>
+      <body style="background:#131314;color:#e3e3e3;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+        <div style="text-align:center;padding:32px;background:#1e1f20;border-radius:20px;border:1px solid #3c4043;max-width:360px;width:90%;">
+          <div style="width:52px;height:52px;background:rgba(129,201,149,0.15);color:#81c995;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px;">✓</div>
+          <h3 style="margin:0 0 8px 0;font-size:19px;font-weight:600;color:#f1f3f4;">Google Drive Connected</h3>
+          <p style="color:#9aa0a6;font-size:13.5px;margin:0 0 16px 0;line-height:1.4;">Authorization successful. Returning to Omni Z...</p>
+        </div>
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'GOOGLE_DRIVE_AUTH_SUCCESS', userId: '${userId}' }, '*');
+            setTimeout(function() { window.close(); }, 500);
+          } else {
+            window.location.href = '/';
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  } catch (err: any) {
+    console.error('[Drive Callback Error]:', err);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+      <body style="background:#131314;color:#f28b82;font-family:sans-serif;padding:30px;text-align:center;">
+        <h3>Failed to Connect Google Drive</h3>
+        <p style="color:#9aa0a6;">${err.message || 'Token exchange failed'}</p>
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'GOOGLE_DRIVE_AUTH_ERROR', error: '${err.message}' }, '*');
+            setTimeout(function(){ window.close(); }, 1800);
+          }
+        </script>
+      </body>
+      </html>
+    `);
+  }
+});
+
+app.get('/api/drive/files', async (req: Request, res: Response) => {
+  const userId = getAuthenticatedUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required. User ID is missing.' });
+  }
+
+  const query = (req.query.query as string) || '';
+  const tab = (req.query.tab as 'recent' | 'my-drive' | 'shared') || 'recent';
+  const pageToken = (req.query.pageToken as string) || undefined;
+  const pageSize = Number(req.query.pageSize) || 35;
+
+  try {
+    const result = await listUserDriveFiles(userId, { query, tab, pageToken, pageSize });
+    res.json(result);
+  } catch (err: any) {
+    if (
+      err.message === 'GOOGLE_DRIVE_NOT_CONNECTED' || 
+      err.message === 'GOOGLE_DRIVE_REVOKED' || 
+      err.message === 'GOOGLE_DRIVE_SESSION_EXPIRED'
+    ) {
+      return res.status(401).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message || 'Failed to list Drive files' });
+  }
+});
+
+app.get('/api/drive/file/:fileId', async (req: Request, res: Response) => {
+  const userId = getAuthenticatedUserId(req);
+  const fileId = req.params.fileId;
+
+  if (!userId || !fileId) {
+    return res.status(401).json({ error: 'Authentication and File ID are required.' });
+  }
+
+  try {
+    const result = await fetchUserDriveFileContent(userId, fileId);
+    res.json(result);
+  } catch (err: any) {
+    if (
+      err.message === 'GOOGLE_DRIVE_NOT_CONNECTED' || 
+      err.message === 'GOOGLE_DRIVE_REVOKED' || 
+      err.message === 'GOOGLE_DRIVE_SESSION_EXPIRED'
+    ) {
+      return res.status(401).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message || 'Failed to retrieve file content' });
+  }
+});
+
+app.post('/api/drive/disconnect', (req: Request, res: Response) => {
+  const userId = getAuthenticatedUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  removeUserTokens(userId);
+  res.json({ success: true });
+});
+
+app.post('/api/drive/save-token', (req: Request, res: Response) => {
+  const userId = getAuthenticatedUserId(req);
+  const { userEmail, accessToken, refreshToken, expiresIn, scope } = req.body;
+  if (!userId || !accessToken) {
+    return res.status(400).json({ error: 'User ID and access token are required.' });
+  }
+  const expiryDate = Date.now() + ((Number(expiresIn) || 3600) * 1000);
+  saveUserTokens(userId, userEmail || '', accessToken, refreshToken || '', expiryDate, scope);
+  res.json({ success: true });
+});
+
+app.get('/api/drive/picker-token', async (req: Request, res: Response) => {
+  const userId = getAuthenticatedUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  try {
+    const token = await getValidAccessTokenForUser(userId);
+    res.json({ accessToken: token });
+  } catch (err: any) {
+    res.status(401).json({ error: err.message || 'Unauthorized' });
+  }
+});
+
 function getApiKey(): string {
   return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
 }
@@ -42,7 +273,7 @@ function getAiClient(customKey?: string): GoogleGenAI {
     apiKey: customKey || getApiKey(),
     httpOptions: {
       headers: {
-        'User-Agent': 'aistudio-build',
+        'User-Agent': 'OmniZ',
       },
     },
   });
@@ -227,7 +458,7 @@ async function generateStreamWithRetry(params: any, customClientKey?: string): P
   const client = customClientKey
     ? new GoogleGenAI({
         apiKey: customClientKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+        httpOptions: { headers: { 'User-Agent': 'OmniZ' } },
       })
     : getAiClient();
 
@@ -271,7 +502,7 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
   const client = customClientKey
     ? new GoogleGenAI({
         apiKey: customClientKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+        httpOptions: { headers: { 'User-Agent': 'OmniZ' } },
       })
     : getAiClient();
 
@@ -412,6 +643,7 @@ app.get('/api/status', async (_req: Request, res: Response) => {
   try {
     const dbStats = await runVectorDb('stats');
     const currentKey = getApiKey();
+    if (res.headersSent || res.writableEnded) return;
     res.json({
       status: 'ok',
       hasApiKey: Boolean(currentKey),
@@ -420,6 +652,7 @@ app.get('/api/status', async (_req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (e) {
+    if (res.headersSent || res.writableEnded) return;
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -427,15 +660,23 @@ app.get('/api/status', async (_req: Request, res: Response) => {
 app.get('/api/image-proxy', async (req: Request, res: Response) => {
   try {
     const rawUrl = req.query.url as string;
-    if (!rawUrl) return res.status(400).send('Image URL required');
+    if (!rawUrl) {
+      if (res.headersSent || res.writableEnded) return;
+      return res.status(400).send('Image URL required');
+    }
     const imageRes = await fetch(rawUrl);
-    if (!imageRes.ok) return res.status(imageRes.status).send('Failed to fetch image');
+    if (!imageRes.ok) {
+      if (res.headersSent || res.writableEnded) return;
+      return res.status(imageRes.status).send('Failed to fetch image');
+    }
     const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
     const buffer = Buffer.from(await imageRes.arrayBuffer());
+    if (res.headersSent || res.writableEnded) return;
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.send(buffer);
   } catch (err: any) {
+    if (res.headersSent || res.writableEnded) return;
     res.status(500).send((err as Error).message);
   }
 });
@@ -444,6 +685,7 @@ app.post('/api/enhance-prompt', async (req: Request, res: Response) => {
   try {
     const { prompt, type = 'general' } = req.body;
     if (!prompt || typeof prompt !== 'string') {
+      if (res.headersSent || res.writableEnded) return;
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
@@ -463,9 +705,11 @@ Output ONLY the final enhanced prompt text, without conversational fluff.`;
 
     const isNotice = aiRes?.isQuotaExceeded || (aiRes?.text && aiRes.text.includes('Service Notice'));
     const enhanced = isNotice ? prompt : (aiRes?.text?.trim() || prompt);
+    if (res.headersSent || res.writableEnded) return;
     res.json({ enhancedPrompt: enhanced });
   } catch (err: any) {
     console.warn('[Enhance Prompt] Fallback triggered:', (err as Error)?.message);
+    if (res.headersSent || res.writableEnded) return;
     res.json({ enhancedPrompt: req.body?.prompt || '' });
   }
 });
@@ -475,8 +719,10 @@ app.get('/api/vector-db/list', async (req: Request, res: Response) => {
     const category = req.query.category as string | undefined;
     const limit = parseInt((req.query.limit as string) || '50', 10);
     const data = await runVectorDb('list', { category, limit });
+    if (res.headersSent || res.writableEnded) return;
     res.json(data);
   } catch (e) {
+    if (res.headersSent || res.writableEnded) return;
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -485,6 +731,7 @@ app.post('/api/vector-db/insert', async (req: Request, res: Response) => {
   try {
     const { id, content, category, metadata } = req.body;
     if (!content) {
+      if (res.headersSent || res.writableEnded) return;
       return res.status(400).json({ error: 'Content is required' });
     }
     const vector = await getGeminiEmbedding(content);
@@ -495,8 +742,10 @@ app.post('/api/vector-db/insert', async (req: Request, res: Response) => {
       vector,
       metadata: metadata || {},
     });
+    if (res.headersSent || res.writableEnded) return;
     res.json(result);
   } catch (e) {
+    if (res.headersSent || res.writableEnded) return;
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -505,6 +754,7 @@ app.post('/api/vector-db/query', async (req: Request, res: Response) => {
   try {
     const { query_text, top_k, category } = req.body;
     if (!query_text) {
+      if (res.headersSent || res.writableEnded) return;
       return res.status(400).json({ error: 'query_text is required' });
     }
     const vector = await getGeminiEmbedding(query_text);
@@ -514,8 +764,10 @@ app.post('/api/vector-db/query', async (req: Request, res: Response) => {
       top_k: top_k || 5,
       category,
     });
+    if (res.headersSent || res.writableEnded) return;
     res.json(results);
   } catch (e) {
+    if (res.headersSent || res.writableEnded) return;
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -524,8 +776,10 @@ app.delete('/api/vector-db/delete', async (req: Request, res: Response) => {
   try {
     const { id } = req.body;
     const result = await runVectorDb('delete', { id });
+    if (res.headersSent || res.writableEnded) return;
     res.json(result);
   } catch (e) {
+    if (res.headersSent || res.writableEnded) return;
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -533,8 +787,10 @@ app.delete('/api/vector-db/delete', async (req: Request, res: Response) => {
 app.post('/api/vector-db/clear', async (_req: Request, res: Response) => {
   try {
     const result = await runVectorDb('clear');
+    if (res.headersSent || res.writableEnded) return;
     res.json(result);
   } catch (e) {
+    if (res.headersSent || res.writableEnded) return;
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -543,11 +799,14 @@ app.post('/api/execute-python', async (req: Request, res: Response) => {
   try {
     const { code } = req.body;
     if (!code || typeof code !== 'string') {
+      if (res.headersSent || res.writableEnded) return;
       return res.status(400).json({ error: 'Python code string is required' });
     }
     const result = await runPythonExecutor(code);
+    if (res.headersSent || res.writableEnded) return;
     res.json(result);
   } catch (e) {
+    if (res.headersSent || res.writableEnded) return;
     res.status(500).json({ error: (e as Error).message });
   }
 });
@@ -882,9 +1141,11 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
 
     const wantsStream = Boolean(req.body.stream || req.headers.accept?.includes('text/event-stream'));
     if (wantsStream) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
+      let clientDisconnected = false;
+      const onClose = () => {
+        clientDisconnected = true;
+      };
+      req.on('close', onClose);
 
       try {
         const { stream: aiStream, modelUsed } = await generateStreamWithRetry(
@@ -896,10 +1157,22 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
           clientProvidedKey
         );
 
+        if (clientDisconnected || req.destroyed || res.writableEnded) {
+          return;
+        }
+
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders?.();
+
         let fullText = '';
         let groundingMetadata: any = null;
 
         for await (const chunk of aiStream) {
+          if (clientDisconnected || req.destroyed || res.writableEnded) {
+            break;
+          }
           const chunkText = chunk.text || '';
           if (chunkText) {
             fullText += chunkText;
@@ -908,6 +1181,10 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
           if (chunk.candidates?.[0]?.groundingMetadata) {
             groundingMetadata = chunk.candidates[0].groundingMetadata;
           }
+        }
+
+        if (clientDisconnected || req.destroyed || res.writableEnded) {
+          return;
         }
 
         const groundingChunks = groundingMetadata?.groundingChunks || [];
@@ -972,6 +1249,10 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
           }
         }
 
+        if (clientDisconnected || req.destroyed || res.writableEnded) {
+          return;
+        }
+
         res.write(`data: ${JSON.stringify({
           type: 'done',
           text: cleanText,
@@ -986,8 +1267,34 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
         res.end();
         return;
       } catch (streamErr: any) {
-        console.warn('Stream fallback to standard gen:', streamErr?.message);
+        console.warn('Stream fallback to standard gen or notice:', streamErr?.message);
+        if (clientDisconnected || req.destroyed || res.writableEnded) {
+          return;
+        }
+        if (res.headersSent) {
+          try {
+            const isQuota = /429|RESOURCE_EXHAUSTED|quota|prepayment|depleted/i.test(streamErr?.message || '');
+            if (isQuota) {
+              const quotaNotice = `### Service Notice\n\nThe service rate limit was temporarily reached for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket automatically replenishes in 30–60 seconds. Please try your prompt again shortly.\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`;
+              res.write(`data: ${JSON.stringify({ type: 'done', text: quotaNotice, isQuotaExceeded: true, model: targetModel })}\n\n`);
+            } else {
+              res.write(`data: ${JSON.stringify({ type: 'error', error: streamErr?.message || 'Streaming failed' })}\n\n`);
+            }
+            res.end();
+          } catch {}
+          return;
+        }
+
+        try {
+          res.removeHeader('Content-Type');
+          res.removeHeader('Cache-Control');
+          res.removeHeader('Connection');
+        } catch {}
       }
+    }
+
+    if (res.headersSent || req.destroyed || res.writableEnded) {
+      return;
     }
 
     const response = await generateWithRetry(
@@ -998,6 +1305,10 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       },
       clientProvidedKey
     );
+
+    if (res.headersSent || req.destroyed || res.writableEnded) {
+      return;
+    }
 
     const responseText = response.text || '';
 
@@ -1094,6 +1405,10 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       }
     }
 
+    if (res.headersSent || req.destroyed || res.writableEnded) {
+      return;
+    }
+
     res.json({
       text: cleanText,
       thinkingProcess,
@@ -1107,6 +1422,12 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       model: (response as any)?.modelUsed || targetModel,
     });
   } catch (error: any) {
+    if (res.headersSent || req.destroyed || res.writableEnded) {
+      try {
+        if (!res.writableEnded) res.end();
+      } catch {}
+      return;
+    }
     const errMsg = error?.message || String(error);
     console.warn('[AI Service] Notice in /api/chat:', errMsg);
     const isQuotaOrDepleted =
@@ -1120,7 +1441,7 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       errMsg.includes('quota');
 
     if (isQuotaOrDepleted) {
-
+      if (res.headersSent || req.destroyed || res.writableEnded) return;
       return res.json({
         text: `### Service Notice\n\nThe service rate limit was temporarily reached for this project.\n\n- **Auto-Refresh**: The per-minute free request bucket automatically replenishes in 30–60 seconds. Please try your prompt again shortly.\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
         thinkingProcess: undefined,
@@ -1142,6 +1463,7 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       }
     } catch {}
 
+    if (res.headersSent || req.destroyed || res.writableEnded) return;
     res.status(500).json({
       error: userFriendlyMessage || 'An error occurred while processing the request.',
     });
@@ -1152,6 +1474,7 @@ app.post('/api/analyze-document', async (req: Request, res: Response) => {
   try {
     const { content, fileName = 'Document', fileType = 'text/plain', storeInVectorDb = true } = req.body;
     if (!content) {
+      if (res.headersSent || req.destroyed || res.writableEnded) return;
       return res.status(400).json({ error: 'Document content is required' });
     }
 
@@ -1186,7 +1509,6 @@ Please provide:
     let indexedChunksCount = 0;
     if (storeInVectorDb) {
       try {
-
         const chunks = [
           `Document "${fileName}" Summary: ${analysisText.slice(0, 600)}`,
           `Document "${fileName}" Content Sample: ${content.slice(0, 800)}`,
@@ -1208,12 +1530,14 @@ Please provide:
       }
     }
 
+    if (res.headersSent || req.destroyed || res.writableEnded) return;
     res.json({
       analysis: analysisText,
       fileName,
       indexedChunksCount,
     });
   } catch (error: any) {
+    if (res.headersSent || req.destroyed || res.writableEnded) return;
     const errMsg = error?.message || String(error);
     console.warn('[Doc Intelligence] Notice in /api/analyze-document:', errMsg);
     const is429 =
@@ -1223,11 +1547,13 @@ Please provide:
       errMsg.includes('quota');
 
     if (is429) {
+      if (res.headersSent || req.destroyed || res.writableEnded) return;
       return res.status(429).json({
         error:
           'You exceeded your current API quota. Please check your API quota or upgrade your billing tier.',
       });
     }
+    if (res.headersSent || req.destroyed || res.writableEnded) return;
     res.status(500).json({ error: errMsg });
   }
 });
@@ -1236,16 +1562,19 @@ app.post('/api/generate-image', async (req: Request, res: Response) => {
   try {
     const { prompt, aspectRatio = '1:1' } = req.body;
     if (!prompt) {
+      if (res.headersSent || req.destroyed || res.writableEnded) return;
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
     const imageResult = await generateAiImage(prompt, aspectRatio);
+    if (res.headersSent || req.destroyed || res.writableEnded) return;
     res.json({
       url: imageResult.url,
       prompt: imageResult.prompt,
       success: true,
     });
   } catch (error: any) {
+    if (res.headersSent || req.destroyed || res.writableEnded) return;
     console.warn('[Image Gen] Notice in /api/generate-image:', (error as Error).message);
     res.status(500).json({ error: (error as Error).message });
   }
@@ -1341,11 +1670,13 @@ You MUST begin your response by articulating your internal step-by-step reasonin
       tokenEstimate: 0,
     });
 
+    if (res.headersSent || req.destroyed || res.writableEnded) return;
     res.json({
       modelA: resA.status === 'fulfilled' ? resA.value : fallbackResponse(modelA, resA.reason),
       modelB: resB.status === 'fulfilled' ? resB.value : fallbackResponse(modelB, resB.reason),
     });
   } catch (error: any) {
+    if (res.headersSent || req.destroyed || res.writableEnded) return;
     console.warn('[Arena Error]:', error?.message || error);
     res.status(500).json({ error: error?.message || 'Arena comparison failed' });
   }
