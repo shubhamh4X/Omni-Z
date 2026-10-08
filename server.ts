@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { execFile, spawn } from 'child_process';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
-import { getPrivacyPolicyHtml, getTermsOfServiceHtml } from './server/legal_pages.js';
+import { getPrivacyPolicyHtml, getTermsOfServiceHtml } from './server/legal_pages.ts';
 import {
   generateAuthUrl,
   verifyState,
@@ -18,7 +18,7 @@ import {
   fetchUserDriveFileContent,
   resolveRedirectUri,
   getValidAccessTokenForUser,
-} from './server/drive_service.js';
+} from './server/drive_service.ts';
 
 dotenv.config();
 

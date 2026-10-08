@@ -2,10 +2,18 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import firebaseConfig from '../firebase-applet-config.json';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+let firebaseConfig: Record<string, any> = {};
+try {
+  const configPath = path.resolve(__dirname, '../firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  }
+} catch {
+  firebaseConfig = {};
+}
 
 const DATA_DIR = path.join(__dirname, 'data');
 const TOKENS_FILE = path.join(DATA_DIR, 'drive_tokens.enc');
