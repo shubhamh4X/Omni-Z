@@ -26,7 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 app.set('trust proxy', 1);
 
@@ -342,38 +342,40 @@ function runVectorDb(cmd: string, payload?: any): Promise<any> {
     return Promise.resolve(matches);
   }
 
-  return new Promise((resolve) => {
-    const pythonScript = path.join(__dirname, 'server', 'vector_db.py');
-    const args = [pythonScript, cmd];
-    if (payload !== undefined) {
-      args.push(JSON.stringify(payload));
-    }
+  return Promise.race([
+    new Promise((resolve) => {
+      const pythonScript = path.join(__dirname, 'server', 'vector_db.py');
+      const args = [pythonScript, cmd];
+      if (payload !== undefined) {
+        args.push(JSON.stringify(payload));
+      }
 
-    execFile('python3', args, { timeout: 3000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) {
-        console.warn(`[Vector DB Note] python3 execution notice: ${err.message}. Using fallback.`);
-        if (cmd === 'stats') {
-          return resolve({ total_entries: 0, categories: {}, available: false });
+      execFile('python3', args, { timeout: 1500, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
+        if (err) {
+          if (cmd === 'stats') {
+            return resolve({ total_entries: 0, categories: {}, available: false });
+          }
+          if (cmd === 'query') {
+            return resolve([]);
+          }
+          return resolve({ success: true, available: false });
         }
-        if (cmd === 'query') {
-          return resolve([]);
+        try {
+          const data = JSON.parse(stdout.trim());
+          if (cmd === 'list' && Array.isArray(data)) {
+            vectorDbCache = data;
+            vectorDbCacheTime = Date.now();
+          } else if (cmd === 'insert' || cmd === 'delete' || cmd === 'clear') {
+            vectorDbCache = null;
+          }
+          resolve(data);
+        } catch {
+          resolve(cmd === 'stats' ? { total_entries: 0, categories: {} } : []);
         }
-        return resolve({ success: true, available: false });
-      }
-      try {
-        const data = JSON.parse(stdout.trim());
-        if (cmd === 'list' && Array.isArray(data)) {
-          vectorDbCache = data;
-          vectorDbCacheTime = Date.now();
-        } else if (cmd === 'insert' || cmd === 'delete' || cmd === 'clear') {
-          vectorDbCache = null;
-        }
-        resolve(data);
-      } catch (parseErr) {
-        resolve({ raw: stdout, error: 'Failed to parse JSON' });
-      }
-    });
-  });
+      });
+    }),
+    new Promise((resolve) => setTimeout(() => resolve(cmd === 'stats' ? { total_entries: 0, categories: {} } : []), 1200)),
+  ]);
 }
 
 function runPythonExecutor(code: string): Promise<any> {
@@ -521,8 +523,8 @@ function isExplicitImageRequest(message: string): boolean {
   return explicitImagePatterns.some((pattern) => pattern.test(text));
 }
 
-let cloudKeyAccessDenied = true;
-let cloudKeyCheckTimestamp = Date.now();
+let cloudKeyAccessDenied = false;
+let cloudKeyCheckTimestamp = 0;
 
 async function generateLocalIntelligentAnswer(message: string, userName?: string): Promise<{
   text: string;
@@ -531,7 +533,7 @@ async function generateLocalIntelligentAnswer(message: string, userName?: string
   const trimmed = (message || '').trim();
   const codeBlocks: Array<{ language: string; code: string }> = [];
 
-  const isDevQuery = /(who\s*(is|are|was)\s*(your\s*)?(developer|creator|maker|builder|author|engineer|founder)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|omni(\s*z)?)|who\s*owns\s*you|tell\s*me\s*who\s*developed\s*you|your\s*developer)/i.test(trimmed);
+  const isDevQuery = /(who\s*(is|are|was|'s|s)?\s*(your|ur|the|the\s*main)?\s*(developer|creator|maker|builder|author|engineer|founder|dev|coder|programmer|mastermind)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|u|omni(\s*z)?|this)|who\s*owns\s*(you|u|this)|tell\s*me\s*who\s*(developed|made|created|built)\s*(you|u)|(your|ur)\s*(developer|creator|maker|dev|builder))/i.test(trimmed);
   if (isDevQuery) {
     return {
       text: `I was developed by Shubham\nI’m Omni Z, one of the top models.`,
@@ -587,7 +589,7 @@ print(f"{'Execution Time':<18} | {duration_ms:<16.3f} ms | {'Optimal':<10}")
   }
 
   return {
-    text: `Hello! I am **Omni Z**, your exceptionally capable AI assistant.\n\n### Operational Capabilities\n- **Live Python 3 Sandbox**: Real-time script execution and computational verification.\n- **Mathematical Precision**: Full KaTeX formatting ($E = mc^2$, $\\mathcal{O}(N \\log N)$).\n- **Google Drive Integration**: Sync, read, and reason over your Drive documents.\n- **Full-Stack Architecture**: Clean implementations in TypeScript, React, Python, and SQL.\n\nHow can I help you today?`,
+    text: `I'm here to help! What would you like to explore or work on today?`,
     codeBlocks: [],
   };
 }
@@ -603,12 +605,13 @@ async function generateStreamWithRetry(params: any, customClientKey?: string): P
   const requestedModel = params.model;
   const safeModel = (requestedModel && !requestedModel.includes('pro') && !requestedModel.includes('image'))
     ? requestedModel
-    : 'gemini-3.1-flash-lite';
+    : 'gemini-3.5-flash-lite';
 
   const candidateModels = Array.from(new Set([
     safeModel,
-    'gemini-3.1-flash-lite',
-    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
   ]));
 
   for (const currentModel of candidateModels) {
@@ -655,12 +658,13 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
   const requestedModel = params.model;
   const safeModel = (requestedModel && !requestedModel.includes('pro') && !requestedModel.includes('image'))
     ? requestedModel
-    : 'gemini-3.1-flash-lite';
+    : 'gemini-3.5-flash-lite';
 
   const candidateModels = Array.from(new Set([
     safeModel,
-    'gemini-3.1-flash-lite',
-    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
   ]));
 
   for (let modelIdx = 0; modelIdx < candidateModels.length; modelIdx++) {
@@ -780,7 +784,7 @@ async function generateWithRetry(params: any, customClientKey?: string, maxRetri
       text: isHighDemand
         ? `### Service Notice: Model High Demand Spike\n\nAI model servers are currently experiencing an unusually high spike in traffic.\n\n- **Status**: The AI compute cluster is momentarily saturated.\n- **Quick Recovery**: Please tap **Retry Request** below in 5–10 seconds to regenerate your response.\n- **Tip**: You can toggle **Search: Off** at the top right to bypass third-party grounding queues.`
         : `### Service Notice\n\nThe service rate limit was reached for this project.\n\n- **Auto-Refresh**: The per-minute request bucket replenishes in 30–60 seconds.\n- **Billing**: To enable unlimited high-speed capacity, ensure prepayment credits or billing are active.\n- **Sandbox Active**: The Python execution sandbox, KaTeX math typesetting, and local vector memory remain fully functional.`,
-      modelUsed: 'gemini-3.1-flash-lite',
+      modelUsed: 'gemini-3.5-flash-lite',
       isQuotaExceeded: true,
       isHighDemand: true,
       candidates: [],
@@ -798,7 +802,7 @@ app.get('/api/status', async (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
       hasApiKey: Boolean(currentKey),
-      model: 'gemini-3.8-flash',
+      model: 'gemini-3.5-flash',
       vectorDb: dbStats,
       timestamp: new Date().toISOString(),
     });
@@ -850,7 +854,7 @@ Elevate it into an exceptionally clear, high-leverage prompt that specifies clea
 Output ONLY the final enhanced prompt text, without conversational fluff.`;
 
     const aiRes = await generateWithRetry({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       contents: instruction,
     });
 
@@ -988,7 +992,7 @@ app.post('/api/chat', async (req: Request, res: Response) => {
     const clientProvidedKey = (req.headers['x-gemini-api-key'] as string) || req.body.customApiKey;
     const effectiveApiKey = clientProvidedKey || getApiKey();
 
-    const isCloudKeyDenied = !clientProvidedKey && cloudKeyAccessDenied && (Date.now() - cloudKeyCheckTimestamp < 300000);
+    const isCloudKeyDenied = !clientProvidedKey && cloudKeyAccessDenied && (Date.now() - cloudKeyCheckTimestamp < 60000);
 
     if (!effectiveApiKey || isCloudKeyDenied) {
       let localMemories: any[] = [];
@@ -1037,12 +1041,193 @@ app.post('/api/chat', async (req: Request, res: Response) => {
 
     const trimmedMessage = (message || '').trim();
     const isCasualGreeting = /^(hey+|hi+|hello+|howdy|hola|greetings|good\s*(morning|afternoon|evening|night)|what'?s\s*up|sup|yo|how\s*are\s*you|who\s*are\s*you|help|test|ping)[.!?\s]*$/i.test(trimmedMessage);
-    const isDeveloperQuery = /(who\s*(is|are|was)\s*(your\s*)?(developer|creator|maker|builder|author|engineer|founder)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|omni(\s*z)?)|who\s*owns\s*you|tell\s*me\s*who\s*developed\s*you|your\s*developer)/i.test(trimmedMessage);
-    const isPureDeveloperQuery = /^(who\s*(is|are|was)\s*(your\s*)?(developer|creator|maker|builder|author)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|omni(\s*z)?)|who\s*owns\s*you|tell\s*me\s*who\s*developed\s*you|your\s*developer)[.!?\s]*$/i.test(trimmedMessage);
+    const isDeveloperQuery = /(who\s*(is|are|was|'s|s)?\s*(your|ur|the|the\s*main)?\s*(developer|creator|maker|builder|author|engineer|founder|dev|coder|programmer|mastermind)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|u|omni(\s*z)?|this)|who\s*owns\s*(you|u|this)|tell\s*me\s*who\s*(developed|made|created|built)\s*(you|u)|(your|ur)\s*(developer|creator|maker|dev|builder))/i.test(trimmedMessage);
+    const isPureDeveloperQuery = /^(who\s*(is|are|was|'s|s)?\s*(your|ur|the|the\s*main)?\s*(developer|creator|maker|builder|author|dev)|who\s*(developed|created|made|built|coded|programmed|trained|engineered)\s*(you|u|omni(\s*z)?|this)|who\s*owns\s*(you|u|this)|tell\s*me\s*who\s*(developed|made|created|built)\s*(you|u)|(your|ur)\s*(developer|creator|maker|dev))[.!?\s]*$/i.test(trimmedMessage);
 
     if (isPureDeveloperQuery) {
+      const devAnswer = `I was developed by Shubham\nI’m Omni Z, one of the top models.`;
+      const wantsStream = Boolean(req.body.stream || req.headers.accept?.includes('text/event-stream'));
+      if (wantsStream) {
+        if (!res.headersSent) {
+          req.socket?.setNoDelay?.(true);
+          res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-cache, no-transform');
+          res.setHeader('Connection', 'keep-alive');
+          res.setHeader('X-Accel-Buffering', 'no');
+          res.flushHeaders?.();
+        }
+        res.write(`data: ${JSON.stringify({ type: 'chunk', text: devAnswer })}\n\n`);
+        res.write(`data: ${JSON.stringify({
+          type: 'done',
+          text: devAnswer,
+          codeBlocks: [],
+          sources: [],
+          webSearchQueries: [],
+          vectorMemories: [],
+          model: 'omni-z',
+        })}\n\n`);
+        (res as any).flush?.();
+        res.end();
+        return;
+      }
       return res.json({
-        text: `I was developed by Shubham\nI’m Omni Z, one of the top models.`,
+        text: devAnswer,
+        images: [],
+        sources: [],
+        webSearchQueries: [],
+        vectorMemories: [],
+        codeBlocks: [],
+        autoSavedMemory: null,
+        model: 'omni-z',
+      });
+    }
+
+    const isCapabilityQuery = /^(what\s*(can|do)\s*(you|u)\s*(do|offer)|what\s*(are\s*)?(your|ur)\s*(capabilities|features|skills|functions)|what\s*(can\s*)?(i|we)\s*(do|build|create)\s*(with|using)\s*(you|u|omni(\s*z)?)|tell\s*me\s*what\s*(you|u)\s*can\s*do|show\s*me\s*what\s*(you|u)\s*can\s*do|how\s*can\s*(you|u)\s*help(\s*me)?|help\s*me\s*get\s*started|what\s*can\s*you\s*actually\s*do)[.!?\s]*$/i.test(trimmedMessage);
+
+    if (isCapabilityQuery) {
+      const capabilityShowcase = `I'm **Omni Z**, and I can do much more than answer questions. Think of me as your AI tutor, coding partner, research assistant, creative designer, and project-building assistant in one place.
+
+Here’s what you can actually do with me. 👇
+
+### 1. 💻 Coding & AI Engineering
+
+<div class="capability-card-row">
+  <img class="capability-thumb" src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=400&q=80" alt="Learn programming and DSA" loading="lazy" />
+  <div style="flex: 1; min-width: 0;">
+    <h4 style="margin: 0 0 4px 0; color: #ffffff; font-weight: 600; font-size: 0.95rem;">Learn programming and DSA</h4>
+    <p style="margin: 0; color: #9aa0a6; font-size: 0.85rem; line-height: 1.6;">Learn Python, Java, JavaScript, SQL, data structures, algorithms, and competitive programming. I can explain concepts, debug code, and help solve LeetCode problems step by step.</p>
+  </div>
+</div>
+
+<div class="capability-card-row">
+  <img class="capability-thumb" src="https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=400&q=80" alt="Build AI projects" loading="lazy" />
+  <div style="flex: 1; min-width: 0;">
+    <h4 style="margin: 0 0 4px 0; color: #ffffff; font-weight: 600; font-size: 0.95rem;">Build AI projects</h4>
+    <p style="margin: 0; color: #9aa0a6; font-size: 0.85rem; line-height: 1.6;">Create chatbots, RAG applications, AI agents, LLM-powered apps, recommendation systems, and machine-learning models. I can help with architecture, implementation, testing, and deployment.</p>
+  </div>
+</div>
+
+<div class="capability-card-row">
+  <img class="capability-thumb" src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=400&q=80" alt="Build websites and SaaS products" loading="lazy" />
+  <div style="flex: 1; min-width: 0;">
+    <h4 style="margin: 0 0 4px 0; color: #ffffff; font-weight: 600; font-size: 0.95rem;">Build websites and SaaS products</h4>
+    <p style="margin: 0; color: #9aa0a6; font-size: 0.85rem; line-height: 1.6;">Work on your Omni Z project, create full-stack websites, integrate APIs and Google Drive, design interfaces, and troubleshoot deployment issues.</p>
+  </div>
+</div>
+
+### 2. 🎨 Image, Design & Creative Work
+
+<div class="capability-grid-2x2">
+  <div class="capability-grid-card">
+    <img class="capability-cover-img" src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=600&q=80" alt="Generate images" loading="lazy" />
+    <div class="capability-grid-info">
+      <h4 class="capability-grid-title">Generate images</h4>
+      <p class="capability-grid-desc">Logos, wallpapers, thumbnails, posters, concept art and visual designs.</p>
+    </div>
+  </div>
+
+  <div class="capability-grid-card">
+    <img class="capability-cover-img" src="https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=600&q=80" alt="Video editing help" loading="lazy" />
+    <div class="capability-grid-info">
+      <h4 class="capability-grid-title">Video editing help</h4>
+      <p class="capability-grid-desc">Premiere Pro effects, transitions, color grading, motion blur, sharpening and rendering workflows.</p>
+    </div>
+  </div>
+
+  <div class="capability-grid-card">
+    <img class="capability-cover-img" src="https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80" alt="Create presentations" loading="lazy" />
+    <div class="capability-grid-info">
+      <h4 class="capability-grid-title">Create presentations</h4>
+      <p class="capability-grid-desc">Plan, structure and help produce PPTs with relevant images, readable layouts and presentation notes.</p>
+    </div>
+  </div>
+
+  <div class="capability-grid-card">
+    <img class="capability-cover-img" src="https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=600&q=80" alt="Design UI/UX" loading="lazy" />
+    <div class="capability-grid-info">
+      <h4 class="capability-grid-title">Design UI/UX</h4>
+      <p class="capability-grid-desc">Landing pages, dashboards, responsive layouts, color palettes and polished user experiences.</p>
+    </div>
+  </div>
+</div>
+
+### 3. 📚 College, Exams & Career
+
+I can help you with:
+- **College work**: Explain topics, prepare notes, solve questions and create presentation scripts in English or Hinglish.
+- **Placements**: Build a roadmap for coding interviews, DSA, aptitude, projects and technical interviews.
+- **AI Engineer career**: Learn machine learning, deep learning, mathematics, PyTorch, LLMs and deployment.`;
+
+      const wantsStream = Boolean(req.body.stream || req.headers.accept?.includes('text/event-stream'));
+      if (wantsStream) {
+        if (!res.headersSent) {
+          req.socket?.setNoDelay?.(true);
+          res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-cache, no-transform');
+          res.setHeader('Connection', 'keep-alive');
+          res.setHeader('X-Accel-Buffering', 'no');
+          res.flushHeaders?.();
+        }
+        res.write(`data: ${JSON.stringify({ type: 'chunk', text: capabilityShowcase })}\n\n`);
+        res.write(`data: ${JSON.stringify({
+          type: 'done',
+          text: capabilityShowcase,
+          codeBlocks: [],
+          sources: [],
+          webSearchQueries: [],
+          vectorMemories: [],
+          model: 'omni-z',
+        })}\n\n`);
+        (res as any).flush?.();
+        res.end();
+        return;
+      }
+      return res.json({
+        text: capabilityShowcase,
+        images: [],
+        sources: [],
+        webSearchQueries: [],
+        vectorMemories: [],
+        codeBlocks: [],
+        autoSavedMemory: null,
+        model: 'omni-z',
+      });
+    }
+
+    // Instant fast-path for short casual greetings (<10ms TTFT)
+    if (isCasualGreeting && !trimmedMessage.includes('?') && trimmedMessage.split(/\s+/).length <= 4) {
+      const greetingOptions = [
+        userName ? `Hey ${userName}! What can I help you with today?` : `Hey! How can I help you today?`,
+        userName ? `Hello ${userName}! What's on your mind?` : `Hello! What are we working on today?`,
+        userName ? `Hey ${userName}, great to see you! How can I assist?` : `Hey there! What would you like to explore today?`,
+      ];
+      const fastGreeting = greetingOptions[Math.floor(Math.random() * greetingOptions.length)];
+      const wantsStream = Boolean(req.body.stream || req.headers.accept?.includes('text/event-stream'));
+      if (wantsStream) {
+        if (!res.headersSent) {
+          req.socket?.setNoDelay?.(true);
+          res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-cache, no-transform');
+          res.setHeader('Connection', 'keep-alive');
+          res.setHeader('X-Accel-Buffering', 'no');
+          res.flushHeaders?.();
+        }
+        res.write(`data: ${JSON.stringify({ type: 'chunk', text: fastGreeting })}\n\n`);
+        res.write(`data: ${JSON.stringify({
+          type: 'done',
+          text: fastGreeting,
+          codeBlocks: [],
+          sources: [],
+          webSearchQueries: [],
+          vectorMemories: [],
+          model: 'omni-z',
+        })}\n\n`);
+        (res as any).flush?.();
+        res.end();
+        return;
+      }
+      return res.json({
+        text: fastGreeting,
         images: [],
         sources: [],
         webSearchQueries: [],
@@ -1055,7 +1240,9 @@ app.post('/api/chat', async (req: Request, res: Response) => {
 
     let relevantMemories: any[] = [];
     let memoryContextString = '';
-    if (enableMemory && trimmedMessage.length > 5 && !isCasualGreeting && !isDeveloperQuery) {
+    // Only query vector DB if user explicitly references past memories or preferences (avoids 300-800ms lag on normal chats)
+    const hasMemoryIntent = /\b(remember|recall|preference|prefer|my name|my favorite|what did i|told you|saved note|about me)\b/i.test(trimmedMessage);
+    if (enableMemory && hasMemoryIntent && !isCasualGreeting && !isDeveloperQuery) {
       try {
         relevantMemories = await runVectorDb('query', {
           query_text: message,
@@ -1065,8 +1252,8 @@ app.post('/api/chat', async (req: Request, res: Response) => {
         if (Array.isArray(relevantMemories) && relevantMemories.length > 0) {
           const filtered = relevantMemories.filter((m) => m.similarity >= 0.35);
           if (filtered.length > 0) {
-            memoryContextString = `\n\n[RECALLED LONG-TERM MEMORY FROM VECTOR DATABASE]:\n` +
-              filtered.map((m, i) => `${i + 1}. [Category: ${m.category}] (Relevance: ${Math.round(m.similarity * 100)}%): "${m.content}"`).join('\n');
+            memoryContextString = `\n\n[RECALLED LONG-TERM MEMORY]:\n` +
+              filtered.map((m, i) => `${i + 1}. [${m.category}]: "${m.content}"`).join('\n');
           }
         }
       } catch (memErr) {
@@ -1241,9 +1428,10 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       parts: currentParts,
     });
 
+    const maxTokens = (cognitiveMode === 'omni-z-autonomous-builder' || cognitiveMode === 'omni-z-think' || cognitiveMode === 'omni-z-code') ? 8192 : 3072;
     const config: any = {
       systemInstruction,
-      maxOutputTokens: 8192,
+      maxOutputTokens: maxTokens,
     };
 
     const isExplicitSearchRequest =
@@ -1254,22 +1442,33 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
       config.tools = [{ googleSearch: {} }];
     }
 
-    let targetModel = 'gemini-3.1-flash-lite';
+    let targetModel = 'gemini-3.5-flash-lite';
     if (cognitiveMode === 'omni-z-autonomous-builder' || cognitiveMode === 'omni-z-think' || cognitiveMode === 'omni-z-code') {
-      targetModel = 'gemini-3.8-flash';
+      targetModel = 'gemini-3.5-flash';
     } else {
-      targetModel = 'gemini-3.1-flash-lite';
+      targetModel = 'gemini-3.5-flash-lite';
     }
 
     const wantsStream = Boolean(req.body.stream || req.headers.accept?.includes('text/event-stream'));
     if (wantsStream) {
+      if (!res.headersSent) {
+        req.socket?.setNoDelay?.(true);
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        res.flushHeaders?.();
+      }
+
       let clientDisconnected = false;
-      const onClose = () => {
-        clientDisconnected = true;
-      };
-      req.on('close', onClose);
+      res.on('close', () => {
+        if (!res.writableEnded) {
+          clientDisconnected = true;
+        }
+      });
 
       try {
+        console.log(`[Chat] Calling generateStreamWithRetry for model: ${targetModel}`);
         const { stream: aiStream, modelUsed } = await generateStreamWithRetry(
           {
             model: targetModel,
@@ -1279,33 +1478,29 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
           clientProvidedKey
         );
 
-        if (clientDisconnected || req.destroyed || res.writableEnded) {
+        if (clientDisconnected || res.writableEnded) {
           return;
         }
-
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.flushHeaders?.();
 
         let fullText = '';
         let groundingMetadata: any = null;
 
         for await (const chunk of aiStream) {
-          if (clientDisconnected || req.destroyed || res.writableEnded) {
+          if (clientDisconnected || res.writableEnded) {
             break;
           }
           const chunkText = chunk.text || '';
           if (chunkText) {
             fullText += chunkText;
             res.write(`data: ${JSON.stringify({ type: 'chunk', text: chunkText })}\n\n`);
+            (res as any).flush?.();
           }
           if (chunk.candidates?.[0]?.groundingMetadata) {
             groundingMetadata = chunk.candidates[0].groundingMetadata;
           }
         }
 
-        if (clientDisconnected || req.destroyed || res.writableEnded) {
+        if (clientDisconnected || res.writableEnded) {
           return;
         }
 
@@ -1371,7 +1566,7 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
           }
         }
 
-        if (clientDisconnected || req.destroyed || res.writableEnded) {
+        if (clientDisconnected || res.writableEnded) {
           return;
         }
 
@@ -1386,11 +1581,12 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
           codeBlocks,
           model: modelUsed,
         })}\n\n`);
+        (res as any).flush?.();
         res.end();
         return;
       } catch (streamErr: any) {
         console.warn('Stream fallback to standard gen or notice:', streamErr?.message);
-        if (clientDisconnected || req.destroyed || res.writableEnded) {
+        if (clientDisconnected || res.writableEnded) {
           return;
         }
 
@@ -1601,7 +1797,7 @@ After closing the </thinking> tag, output your complete, immaculate, and articul
         vectorMemories: [],
         codeBlocks: [],
         isQuotaExceeded: true,
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.5-flash-lite',
       });
     }
 
@@ -1670,7 +1866,7 @@ Please provide:
 5. Recommended Action Items or Follow-up Questions`;
 
     const response = await generateWithRetry({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
     });
 
@@ -1794,7 +1990,7 @@ You MUST begin your response by articulating your internal step-by-step reasonin
       }
 
       const response = await generateWithRetry({
-        model: 'gemini-3.8-flash',
+        model: 'gemini-3.5-flash',
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config,
       });

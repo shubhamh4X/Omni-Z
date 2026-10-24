@@ -320,3 +320,107 @@ code, pre, kbd, .font-mono {
   color: #a8c7fa;
 }
 
+.omniz-content img {
+  border-radius: 0.75rem;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Rich Capability Showcase Cards & Visual Grid */
+.omniz-content .capability-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.9rem 1.15rem;
+  margin: 0.85rem 0;
+  border-radius: 1rem;
+  background: rgba(30, 31, 35, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.omniz-content .capability-card-row:hover {
+  background: rgba(38, 40, 46, 0.9);
+  border-color: rgba(138, 180, 248, 0.35);
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.omniz-content .capability-thumb {
+  width: 100px;
+  height: 68px;
+  border-radius: 0.65rem;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.omniz-content .capability-grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem;
+  margin: 1.25rem 0 1.75rem 0;
+}
+
+@media (max-width: 640px) {
+  .omniz-content .capability-grid-2x2 {
+    grid-template-columns: 1fr;
+  }
+  .omniz-content .capability-card-row {
+    flex-direction: column;
+  }
+  .omniz-content .capability-thumb {
+    width: 100%;
+    height: 120px;
+  }
+}
+
+.omniz-content .capability-grid-card {
+  border-radius: 1.15rem;
+  overflow: hidden;
+  background: rgba(26, 27, 31, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.omniz-content .capability-grid-card:hover {
+  border-color: rgba(138, 180, 248, 0.4);
+  background: rgba(32, 34, 40, 0.95);
+  transform: translateY(-2.5px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.omniz-content .capability-cover-img {
+  width: 100%;
+  height: 168px;
+  object-fit: cover;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.omniz-content .capability-grid-info {
+  padding: 0.95rem 1.1rem 1.15rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.omniz-content .capability-grid-title {
+  font-weight: 600;
+  font-size: 0.96rem;
+  color: #ffffff;
+  margin: 0 !important;
+  letter-spacing: -0.01em;
+}
+
+.omniz-content .capability-grid-desc {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: #9aa0a6;
+  margin: 0 !important;
+}
+

@@ -513,32 +513,26 @@ export default function App() {
         images: [],
       };
 
-      let assistantMessageAdded = false;
-
-      const appendEmptyAssistantIfFirstChunk = () => {
-        if (!assistantMessageAdded) {
-          assistantMessageAdded = true;
-          if (isTemporaryChat) {
-            setTemporarySession((prev) => ({
-              ...prev,
-              messages: [...prev.messages, initialAssistantMessage],
-              updatedAt: Date.now(),
-            }));
-          } else {
-            setSessions((prev) =>
-              prev.map((s) =>
-                s.id === targetSessionId
-                  ? {
-                      ...s,
-                      messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), initialAssistantMessage],
-                      updatedAt: Date.now(),
-                    }
-                  : s
-              )
-            );
-          }
-        }
-      };
+      // Immediately render the assistant bubble for instant UI feedback (0ms TTFT perception)
+      if (isTemporaryChat) {
+        setTemporarySession((prev) => ({
+          ...prev,
+          messages: [...prev.messages, initialAssistantMessage],
+          updatedAt: Date.now(),
+        }));
+      } else {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === targetSessionId
+              ? {
+                  ...s,
+                  messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), initialAssistantMessage],
+                  updatedAt: Date.now(),
+                }
+              : s
+          )
+        );
+      }
 
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -549,9 +543,9 @@ export default function App() {
         signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           message: text,
-          history: updatedMessages.slice(-8).map((m) => ({
+          history: updatedMessages.slice(-6).map((m) => ({
             role: m.role,
-            content: m.content,
+            content: typeof m.content === 'string' ? m.content.slice(0, 1500) : '',
           })),
           attachments,
           enableSearch,
@@ -600,7 +594,6 @@ export default function App() {
               try {
                 const parsed = JSON.parse(line.slice(6));
                 if (parsed.type === 'chunk') {
-                  appendEmptyAssistantIfFirstChunk();
                   accumulatedText += parsed.text;
                   const currentText = accumulatedText;
                   const updateStreamMsg = (msgs: ChatMessage[]) =>
@@ -647,40 +640,19 @@ export default function App() {
           autoSavedMemory: finalData?.autoSavedMemory || null,
         };
 
-        if (!assistantMessageAdded) {
-          if (isTemporaryChat) {
-            setTemporarySession((prev) => ({
-              ...prev,
-              messages: [...prev.messages, assistantMessage],
-              updatedAt: Date.now(),
-            }));
-          } else {
-            setSessions((prev) =>
-              prev.map((s) =>
-                s.id === targetSessionId
-                  ? {
-                      ...s,
-                      messages: [...(Array.isArray(s.messages) ? s.messages : updatedMessages), assistantMessage],
-                      updatedAt: Date.now(),
-                    }
-                  : s
-              )
-            );
-          }
+        const updateFinalMsg = (msgs: ChatMessage[]) =>
+          msgs.map((m) => (m.id === assistantMsgId ? assistantMessage : m));
+
+        if (isTemporaryChat) {
+          setTemporarySession((prev) => ({
+            ...prev,
+            messages: updateFinalMsg(prev.messages),
+            updatedAt: Date.now(),
+          }));
         } else {
-          const updateFinalMsg = (msgs: ChatMessage[]) =>
-            msgs.map((m) => (m.id === assistantMsgId ? assistantMessage : m));
-          if (isTemporaryChat) {
-            setTemporarySession((prev) => ({
-              ...prev,
-              messages: updateFinalMsg(prev.messages),
-              updatedAt: Date.now(),
-            }));
-          } else {
-            setSessions((prev) =>
-              prev.map((s) => (s.id === targetSessionId ? { ...s, messages: updateFinalMsg(s.messages) } : s))
-            );
-          }
+          setSessions((prev) =>
+            prev.map((s) => (s.id === targetSessionId ? { ...s, messages: updateFinalMsg(s.messages) } : s))
+          );
         }
       } else {
         const data = await response.json();
