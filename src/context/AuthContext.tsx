@@ -27,6 +27,7 @@ interface AuthContextType {
   isDriveConnected: boolean;
   driveStatus: DriveConnectionState;
   driveEmail: string | null;
+  isDriveMismatched: boolean;
   loginWithGoogle: () => Promise<void>;
   connectDrive: (customScope?: string) => Promise<boolean>;
   disconnectDrive: () => Promise<void>;
@@ -44,6 +45,7 @@ const AuthContext = createContext<AuthContextType>({
   isDriveConnected: false,
   driveStatus: 'disconnected',
   driveEmail: null,
+  isDriveMismatched: false,
   loginWithGoogle: async () => {},
   connectDrive: async () => false,
   disconnectDrive: async () => {},
@@ -62,28 +64,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isDriveConnected, setIsDriveConnected] = useState<boolean>(false);
   const [driveStatus, setDriveStatus] = useState<DriveConnectionState>('disconnected');
   const [driveEmail, setDriveEmail] = useState<string | null>(null);
+  const [isDriveMismatched, setIsDriveMismatched] = useState<boolean>(false);
 
   const refreshDriveStatus = async () => {
     if (!user || user.isGuest) {
       setIsDriveConnected(false);
       setDriveStatus('disconnected');
       setDriveEmail(null);
+      setIsDriveMismatched(false);
       return;
     }
     try {
-      const st = await checkDriveStatus(user.uid);
+      const st = await checkDriveStatus(user.uid, user.email || undefined);
       if (st.connected) {
         setIsDriveConnected(true);
         setDriveStatus('connected');
         setDriveEmail(st.email || user.email);
+        setIsDriveMismatched(Boolean(st.isAccountMismatched));
       } else {
         setIsDriveConnected(false);
         setDriveStatus('disconnected');
         setDriveEmail(null);
+        setIsDriveMismatched(false);
       }
     } catch {
       setIsDriveConnected(false);
       setDriveStatus('disconnected');
+      setIsDriveMismatched(false);
     }
   };
 
@@ -101,25 +108,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAccessToken(getCachedAccessToken());
 
         try {
-          const st = await checkDriveStatus(currentUser.uid);
+          const st = await checkDriveStatus(currentUser.uid, currentUser.email || undefined);
           if (st.connected) {
             setIsDriveConnected(true);
             setDriveStatus('connected');
             setDriveEmail(st.email || currentUser.email);
+            setIsDriveMismatched(Boolean(st.isAccountMismatched));
           } else {
             setIsDriveConnected(false);
             setDriveStatus('disconnected');
             setDriveEmail(null);
+            setIsDriveMismatched(false);
           }
         } catch {
           setIsDriveConnected(false);
           setDriveStatus('disconnected');
+          setIsDriveMismatched(false);
         }
       } else {
         setAccessToken(null);
         setIsDriveConnected(false);
         setDriveStatus('disconnected');
         setDriveEmail(null);
+        setIsDriveMismatched(false);
 
         try {
           const storedGuest = localStorage.getItem('omniz_guest_user');
@@ -169,129 +180,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const connectDrive = async (): Promise<boolean> => {
     let currentOmniUser = user;
 
-    if (!currentOmniUser || currentOmniUser.isGuest) {
-      try {
-        const loggedInUser = await signInWithGoogle();
-        if (!loggedInUser) return false;
-        currentOmniUser = {
-          uid: loggedInUser.uid,
-          email: loggedInUser.email,
-          displayName: loggedInUser.displayName,
-          photoURL: loggedInUser.photoURL,
-          isGuest: false,
-        };
-        setUser(currentOmniUser);
-        await refreshDriveStatus();
-        return true;
-      } catch (err: any) {
-        setAuthError(err?.message || 'Please sign in with Google to connect Drive.');
-        return false;
-      }
-    }
-
-    const popup = window.open('about:blank', 'omniZGoogleDrive', 'width=540,height=700,menubar=no,toolbar=no');
-    if (!popup) {
-      setAuthError('Google sign-in popup was blocked by your browser. Please allow popups for this site in your browser address bar.');
-      setDriveStatus('error');
-      return false;
-    }
-
     setDriveStatus('authorizing');
     setAuthError(null);
 
     try {
-      const authRes = await fetch(
-        `/api/drive/auth-url?userId=${encodeURIComponent(currentOmniUser.uid)}&userEmail=${encodeURIComponent(currentOmniUser.email || '')}`,
-        {
-          headers: {
-            'x-user-id': currentOmniUser.uid,
-          },
-        }
-      );
-
-      if (!authRes.ok) {
-        popup.close();
-        try {
-          const fbRes = await connectGoogleDrive(undefined, currentOmniUser.email || undefined);
-          if (fbRes?.accessToken) {
-            setIsDriveConnected(true);
-            setDriveStatus('connected');
-            setDriveEmail(currentOmniUser.email);
-            return true;
-          }
-        } catch (fbErr: any) {
-          console.warn('[Drive Auth] Direct flow note:', fbErr);
-          if (fbErr?.message?.includes('timed out') || fbErr?.message?.includes('blocked')) {
-            setAuthError(fbErr.message);
-            setDriveStatus('error');
-            return false;
-          }
-        }
+      const fbRes = await connectGoogleDrive();
+      if (!fbRes || !fbRes.accessToken) {
         setDriveStatus('disconnected');
         return false;
       }
 
-      const { url } = await authRes.json();
-      popup.location.href = url;
+      const token = fbRes.accessToken;
+      setAccessToken(token);
+      setCachedAccessToken(token);
+      setIsDriveConnected(true);
+      setDriveStatus('connected');
 
-      return await new Promise<boolean>((resolve) => {
-        let isSettled = false;
+      const authorizedEmail = fbRes.email || fbRes.user?.email || currentOmniUser?.email || null;
+      setDriveEmail(authorizedEmail);
 
-        const cleanup = () => {
-          isSettled = true;
-          window.removeEventListener('message', handleMessage);
-          clearInterval(checkClosedInterval);
+      if (fbRes.user) {
+        const updatedUser: AppUser = {
+          uid: fbRes.user.uid,
+          email: fbRes.user.email,
+          displayName: fbRes.user.displayName,
+          photoURL: fbRes.user.photoURL,
+          isGuest: false,
         };
-
-        const handleMessage = (event: MessageEvent) => {
-          if (event.data?.type === 'GOOGLE_DRIVE_AUTH_SUCCESS') {
-            cleanup();
-            setIsDriveConnected(true);
-            setDriveStatus('connected');
-            setDriveEmail(currentOmniUser.email);
-            resolve(true);
-          } else if (event.data?.type === 'GOOGLE_DRIVE_AUTH_ERROR') {
-            cleanup();
-            setDriveStatus('error');
-            setAuthError(event.data.error || 'Google Drive authorization failed.');
-            resolve(false);
-          }
-        };
-
-        window.addEventListener('message', handleMessage);
-
-        const checkClosedInterval = setInterval(async () => {
-          if (popup.closed && !isSettled) {
-            cleanup();
-            try {
-              const st = await checkDriveStatus(currentOmniUser.uid);
-              if (st.connected) {
-                setIsDriveConnected(true);
-                setDriveStatus('connected');
-                setDriveEmail(st.email || currentOmniUser.email);
-                resolve(true);
-                return;
-              }
-            } catch {}
-            setDriveStatus('disconnected');
-            resolve(false);
-          }
-        }, 500);
-
-        setTimeout(() => {
-          if (!isSettled) {
-            cleanup();
-            if (!popup.closed) {
-              try { popup.close(); } catch {}
-            }
-            setDriveStatus('disconnected');
-            resolve(false);
-          }
-        }, 60000);
-      });
+        setUser(updatedUser);
+      }
+      setIsDriveMismatched(false);
+      return true;
     } catch (err: any) {
-      if (!popup.closed) {
-        try { popup.close(); } catch {}
+      console.error('[Drive Auth Error]', err);
+      const code = err?.code || '';
+      if (
+        code === 'auth/popup-closed-by-user' ||
+        code === 'auth/cancelled-popup-request' ||
+        code === 'auth/user-cancelled'
+      ) {
+        setDriveStatus('disconnected');
+        return false;
+      }
+      if (code === 'auth/popup-blocked') {
+        setAuthError('Google sign-in popup was blocked by your browser. Please allow popups for this site in your browser address bar.');
+        setDriveStatus('error');
+        return false;
       }
       setDriveStatus('error');
       setAuthError(err?.message || 'Failed to connect Google Drive.');
@@ -308,6 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsDriveConnected(false);
     setDriveStatus('disconnected');
     setDriveEmail(null);
+    setIsDriveMismatched(false);
   };
 
   const loginAsGuest = (name = 'Guest User', email = 'guest@omniz.local') => {
@@ -323,6 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsDriveConnected(false);
     setDriveStatus('disconnected');
     setDriveEmail(null);
+    setIsDriveMismatched(false);
     setAuthError(null);
     try {
       localStorage.setItem('omniz_guest_user', JSON.stringify(guestUser));
@@ -340,6 +276,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsDriveConnected(false);
       setDriveStatus('disconnected');
       setDriveEmail(null);
+      setIsDriveMismatched(false);
       await signOutUser();
     } catch (error: any) {
       console.warn('Logout notice:', error?.message || error);
@@ -348,6 +285,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsDriveConnected(false);
       setDriveStatus('disconnected');
       setDriveEmail(null);
+      setIsDriveMismatched(false);
     }
   };
 
@@ -360,6 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isDriveConnected,
         driveStatus,
         driveEmail,
+        isDriveMismatched,
         loginWithGoogle,
         connectDrive,
         disconnectDrive,

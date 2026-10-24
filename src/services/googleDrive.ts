@@ -1,4 +1,4 @@
-import { auth } from '../firebase';
+import { auth, getCachedAccessToken } from '../firebase';
 
 export interface DriveFile {
   id: string;
@@ -10,6 +10,7 @@ export interface DriveFile {
   thumbnailLink?: string;
   webViewLink?: string;
   owners?: Array<{ displayName?: string }>;
+  parents?: string[];
 }
 
 export interface ListDriveFilesOptions {
@@ -17,6 +18,13 @@ export interface ListDriveFilesOptions {
   tab?: 'recent' | 'my-drive' | 'shared';
   pageToken?: string;
   pageSize?: number;
+  folderId?: string;
+}
+
+export interface ListDriveFilesResult {
+  files: DriveFile[];
+  nextPageToken?: string;
+  missingReadonlyScope?: boolean;
 }
 
 export interface DriveStatusResponse {
@@ -24,12 +32,19 @@ export interface DriveStatusResponse {
   email: string | null;
   hasRefreshToken: boolean;
   expiryDate?: number | null;
+  hasReadonlyScope?: boolean;
+  scope?: string;
+  isAccountMismatched?: boolean;
 }
 
 async function getAuthHeaders(userId?: string): Promise<Record<string, string>> {
   const headers: Record<string, string> = {};
   if (userId) {
     headers['x-user-id'] = userId;
+  }
+  const driveToken = getCachedAccessToken();
+  if (driveToken) {
+    headers['x-drive-token'] = driveToken;
   }
   try {
     const idToken = await auth.currentUser?.getIdToken();
@@ -40,11 +55,12 @@ async function getAuthHeaders(userId?: string): Promise<Record<string, string>> 
   return headers;
 }
 
-export async function checkDriveStatus(userId: string): Promise<DriveStatusResponse> {
+export async function checkDriveStatus(userId: string, userEmail?: string): Promise<DriveStatusResponse> {
   if (!userId) return { connected: false, email: null, hasRefreshToken: false };
   try {
     const headers = await getAuthHeaders(userId);
-    const res = await fetch(`/api/drive/status?userId=${encodeURIComponent(userId)}`, {
+    const emailParam = userEmail ? `&userEmail=${encodeURIComponent(userEmail)}` : '';
+    const res = await fetch(`/api/drive/status?userId=${encodeURIComponent(userId)}${emailParam}`, {
       headers,
     });
     if (res.ok) {
@@ -75,8 +91,8 @@ export async function disconnectDriveSession(userId: string): Promise<void> {
 export async function fetchDriveFiles(
   userIdOrToken: string,
   options: ListDriveFilesOptions = {}
-): Promise<{ files: DriveFile[]; nextPageToken?: string }> {
-  const { query = '', tab = 'recent', pageToken, pageSize = 35 } = options;
+): Promise<ListDriveFilesResult> {
+  const { query = '', tab = 'my-drive', pageToken, pageSize = 40, folderId } = options;
 
   if (!userIdOrToken) {
     throw new Error('User identifier or token is required to browse Google Drive.');
@@ -92,6 +108,7 @@ export async function fetchDriveFiles(
       pageSize: String(pageSize),
     });
     if (pageToken) params.set('pageToken', pageToken);
+    if (folderId) params.set('folderId', folderId);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -116,6 +133,7 @@ export async function fetchDriveFiles(
       return {
         files: data.files || [],
         nextPageToken: data.nextPageToken,
+        missingReadonlyScope: data.missingReadonlyScope,
       };
     } catch (err: any) {
       clearTimeout(timeoutId);
@@ -126,7 +144,12 @@ export async function fetchDriveFiles(
     }
   }
 
-  const queryParts: string[] = ['trashed = false'];
+  const queryParts: string[] = [
+    'trashed = false',
+  ];
+  if (folderId) {
+    queryParts.push(`'${folderId}' in parents`);
+  }
   if (tab === 'shared') {
     queryParts.push('sharedWithMe = true');
   }
@@ -136,11 +159,13 @@ export async function fetchDriveFiles(
   }
 
   const q = queryParts.join(' and ');
+  const orderBy = tab === 'shared' ? 'sharedWithMeTime desc' : 'modifiedTime desc';
   const params = new URLSearchParams({
     pageSize: String(pageSize),
-    fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, iconLink, thumbnailLink, webViewLink, owners(displayName))',
-    orderBy: tab === 'recent' ? 'modifiedTime desc' : 'name asc',
+    fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, iconLink, thumbnailLink, webViewLink, owners(displayName), parents)',
+    orderBy,
     q,
+    spaces: 'drive',
     supportsAllDrives: 'true',
     includeItemsFromAllDrives: 'true',
   });
@@ -169,9 +194,26 @@ export async function fetchDriveFiles(
     }
 
     const data = await response.json();
+    const files: DriveFile[] = data.files || [];
+
+    let missingReadonlyScope = false;
+    if (files.length === 0 && !query.trim() && !folderId) {
+      try {
+        const tokenRes = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(userIdOrToken)}`);
+        if (tokenRes.ok) {
+          const tInfo = await tokenRes.json();
+          const grantedScope = tInfo.scope || '';
+          if (!grantedScope.includes('drive.readonly') && !grantedScope.includes('/auth/drive ')) {
+            missingReadonlyScope = true;
+          }
+        }
+      } catch {}
+    }
+
     return {
-      files: data.files || [],
+      files,
       nextPageToken: data.nextPageToken,
+      missingReadonlyScope,
     };
   } catch (err: any) {
     clearTimeout(timeoutId);

@@ -119,12 +119,22 @@ export default function App() {
     setIsTemporaryChat(false);
   };
 
+  const saveSessionsTimerRef = useRef<any>(null);
+
   useEffect(() => {
-    try {
-      localStorage.setItem('omniz_sessions', JSON.stringify(sessions));
-    } catch (e) {
-      console.warn('Failed to save sessions to storage:', e);
+    if (saveSessionsTimerRef.current) {
+      clearTimeout(saveSessionsTimerRef.current);
     }
+    saveSessionsTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem('omniz_sessions', JSON.stringify(sessions));
+      } catch (e) {
+        console.warn('Failed to save sessions to storage:', e);
+      }
+    }, 600);
+    return () => {
+      if (saveSessionsTimerRef.current) clearTimeout(saveSessionsTimerRef.current);
+    };
   }, [sessions]);
 
   useEffect(() => {
@@ -575,13 +585,17 @@ export default function App() {
         let finalData: any = null;
         let streamError: string | null = null;
 
+        let sseBuffer = '';
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunkStr = decoder.decode(value, { stream: true });
-          const lines = chunkStr.split('\n');
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split('\n');
+          // Keep trailing incomplete fragment in sseBuffer
+          sseBuffer = lines.pop() || '';
 
-          for (const line of lines) {
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
             if (line.startsWith('data: ')) {
               try {
                 const parsed = JSON.parse(line.slice(6));
@@ -745,106 +759,15 @@ export default function App() {
   };
 
   const handleSelectPrompt = async (prompt: string, customTitle?: string) => {
-
-    let targetSessionId = activeSessionId;
-    const isCurrentEmpty = currentSession && currentSession.messages.length === 0;
     const baseTitle = cleanTitle(customTitle || prompt);
     const formattedTitle = baseTitle.slice(0, 35) + (baseTitle.length > 35 ? '...' : '');
 
-    const userMessage: ChatMessage = {
-      id: `msg_${Date.now()}_u`,
-      role: 'user',
-      content: prompt,
-      timestamp: Date.now(),
-      attachments: [],
-    };
-
-    if (isCurrentEmpty) {
-      targetSessionId = currentSession.id;
+    if (currentSession && currentSession.messages.length === 0) {
       setSessions((prev) =>
-        prev.map((s) =>
-          s.id === targetSessionId
-            ? { ...s, title: formattedTitle, messages: [userMessage], updatedAt: Date.now() }
-            : s
-        )
+        prev.map((s) => (s.id === currentSession.id ? { ...s, title: formattedTitle } : s))
       );
-    } else {
-      targetSessionId = `session_${Date.now()}`;
-      const newSession: ChatSession = {
-        id: targetSessionId,
-        title: formattedTitle,
-        messages: [userMessage],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      setSessions((prev) => [newSession, ...prev]);
-      setActiveSessionId(targetSessionId);
     }
-
-    setIsLoading(true);
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: prompt,
-          history: [],
-          attachments: [],
-          enableSearch,
-          enableMemory: true,
-          deepThinking: (deepThinkingEnabled && (selectedModel === 'omni-z-flash' || selectedModel === 'omni-z-autonomous-builder')) || selectedModel === 'omni-z-think',
-          allAiSynergy: true,
-          cognitiveMode: selectedModel,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const assistantMessage: ChatMessage = {
-        id: `msg_${Date.now()}_a`,
-        role: 'assistant',
-        content: data.text || data.reply || "I'm ready to help. What would you like to explore next?",
-        timestamp: Date.now(),
-        sources: data.sources || [],
-        webSearchQueries: data.webSearchQueries || [],
-        vectorMemories: data.recalledMemories || [],
-        codeBlocks: data.codeBlocks || [],
-        images: data.images || [],
-        imagePrompt: data.imagePrompt || undefined,
-        thinkingProcess: data.thinkingProcess || undefined,
-        autoSavedMemory: data.autoSavedMemory || null,
-      };
-
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === targetSessionId
-            ? { ...s, messages: [userMessage, assistantMessage], updatedAt: Date.now() }
-            : s
-        )
-      );
-    } catch (err: any) {
-      console.error('Prompt error:', err);
-      const errorMessage: ChatMessage = {
-        id: `msg_${Date.now()}_err`,
-        role: 'assistant',
-        content: `I encountered an issue starting this session: ${err.message || 'Please check your connection and try again.'}`,
-        timestamp: Date.now(),
-      };
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === targetSessionId
-            ? { ...s, messages: [userMessage, errorMessage], updatedAt: Date.now() }
-            : s
-        )
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    await handleSendMessage(prompt, []);
   };
 
   const handleAdoptArenaWinner = (winnerContent: string, modelName: string) => {

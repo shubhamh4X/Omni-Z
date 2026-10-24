@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",
-    "build": "vite build",
+    "build": "vite build && esbuild server/legal_pages.ts --outfile=server/legal_pages.js --format=esm && esbuild server/drive_service.ts --outfile=server/drive_service.js --format=esm",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"

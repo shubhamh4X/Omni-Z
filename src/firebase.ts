@@ -24,12 +24,17 @@ const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 
-export const DEFAULT_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+export const DEFAULT_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 export const FULL_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
 
 export const getActiveDriveScope = (): string => {
   try {
-    return localStorage.getItem('omniz_drive_scope') || DEFAULT_DRIVE_SCOPE;
+    const stored = localStorage.getItem('omniz_drive_scope');
+    if (!stored || stored === 'https://www.googleapis.com/auth/drive.file') {
+      localStorage.setItem('omniz_drive_scope', DEFAULT_DRIVE_SCOPE);
+      return DEFAULT_DRIVE_SCOPE;
+    }
+    return stored;
   } catch {
     return DEFAULT_DRIVE_SCOPE;
   }
@@ -51,16 +56,17 @@ googleProvider.setCustomParameters({
 });
 googleProvider.addScope(DEFAULT_DRIVE_SCOPE);
 
-export const createDriveProvider = (scope: string = getActiveDriveScope(), loginEmail?: string): GoogleAuthProvider => {
+export const createDriveProvider = (scope: string = getActiveDriveScope()): GoogleAuthProvider => {
   const provider = new GoogleAuthProvider();
-  const params: Record<string, string> = {
-    prompt: 'consent',
-  };
-  if (loginEmail && loginEmail.includes('@')) {
-    params.login_hint = loginEmail;
+  provider.setCustomParameters({
+    prompt: 'consent select_account',
+  });
+  // Ensure both drive.readonly (for full Drive browse/download) and drive.file are requested
+  provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+  provider.addScope('https://www.googleapis.com/auth/drive.file');
+  if (scope && scope !== 'https://www.googleapis.com/auth/drive.readonly' && scope !== 'https://www.googleapis.com/auth/drive.file') {
+    provider.addScope(scope);
   }
-  provider.setCustomParameters(params);
-  provider.addScope(scope);
   return provider;
 };
 
@@ -151,57 +157,93 @@ export const signInWithGoogle = async (): Promise<User | null> => {
   }
 };
 
-export const connectGoogleDrive = async (customScope?: string, userEmail?: string): Promise<{ user: User | null; accessToken: string } | null> => {
+export const connectGoogleDrive = async (customScope?: string): Promise<{ user: User | null; accessToken: string; email?: string } | null> => {
   const scope = customScope || getActiveDriveScope();
-  const provider = createDriveProvider(scope, userEmail);
-
-  let timerId: any = null;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timerId = setTimeout(() => {
-      reject(new Error('TIMEOUT_POPUP_NOT_RESPONDING'));
-    }, 25000);
-  });
+  const provider = createDriveProvider(scope);
 
   try {
-    const popupPromise = signInWithPopup(auth, provider);
-    const result = await Promise.race([popupPromise, timeoutPromise]);
-    if (timerId) clearTimeout(timerId);
+    let accessToken: string | null = null;
+    let user: User | null = null;
+    let driveEmail: string | undefined = undefined;
 
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        accessToken = credential.accessToken;
+      }
+      user = result.user;
+      driveEmail = user?.email || undefined;
+    } catch (popupErr: any) {
+      const isCancelled = 
+        popupErr?.code === 'auth/popup-closed-by-user' || 
+        popupErr?.code === 'auth/cancelled-popup-request' ||
+        popupErr?.code === 'auth/user-cancelled';
+
+      if (isCancelled) {
+        return null;
+      }
+
+      // Recover credential if account collision or linking conflict happens
+      const fallbackCred = GoogleAuthProvider.credentialFromError(popupErr);
+      if (fallbackCred?.accessToken) {
+        accessToken = fallbackCred.accessToken;
+        user = auth.currentUser;
+      } else {
+        throw popupErr;
+      }
+    }
+
+    if (!accessToken) {
       throw new Error('Google Drive access token was not returned. Please try again.');
     }
 
-    cachedAccessToken = credential.accessToken;
-    const user = result.user;
+    cachedAccessToken = accessToken;
+
+    // Fetch the actual email of the Google account that granted Drive permissions
+    try {
+      const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (infoRes.ok) {
+        const info = await infoRes.json();
+        if (info.email) {
+          driveEmail = info.email;
+        }
+      }
+    } catch {
+      // Ignore userinfo failure
+    }
+
+    const targetUserId = user?.uid || auth.currentUser?.uid || `user_${Date.now()}`;
+
+    try {
+      const idToken = await (user || auth.currentUser)?.getIdToken().catch(() => '');
+      await fetch('/api/drive/save-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {}),
+          'x-user-id': targetUserId,
+        },
+        body: JSON.stringify({
+          userId: targetUserId,
+          userEmail: driveEmail || user?.email || '',
+          accessToken,
+          expiresIn: 3600,
+          scope,
+        }),
+      });
+    } catch (syncErr) {
+      console.warn('[Google Drive] Backend sync note:', syncErr);
+    }
 
     if (user) {
-      try {
-        const idToken = await user.getIdToken();
-        await fetch('/api/drive/save-token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${idToken}`,
-            'x-user-id': user.uid,
-          },
-          body: JSON.stringify({
-            userId: user.uid,
-            userEmail: user.email || userEmail || '',
-            accessToken: credential.accessToken,
-            expiresIn: 3600,
-            scope,
-          }),
-        });
-      } catch (syncErr) {
-        console.warn('[Google Drive] Backend sync note:', syncErr);
-      }
-
       await setDoc(
         doc(db, 'users', user.uid),
         {
           uid: user.uid,
-          email: user.email || '',
+          email: user.email || driveEmail || '',
           displayName: user.displayName || 'User',
           photoURL: user.photoURL || '',
           lastLogin: new Date().toISOString(),
@@ -210,14 +252,8 @@ export const connectGoogleDrive = async (customScope?: string, userEmail?: strin
       ).catch(() => {});
     }
 
-    return { user, accessToken: credential.accessToken };
+    return { user, accessToken, email: driveEmail };
   } catch (error: any) {
-    if (timerId) clearTimeout(timerId);
-
-    if (error?.message === 'TIMEOUT_POPUP_NOT_RESPONDING') {
-      throw new Error('Google Drive sign-in timed out. Check if your browser blocked the Google sign-in window (look for a "Pop-up blocked" icon in your address bar).');
-    }
-
     const isCancelledByUser = 
       error?.code === 'auth/popup-closed-by-user' || 
       error?.code === 'auth/cancelled-popup-request' ||

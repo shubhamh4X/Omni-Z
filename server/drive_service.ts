@@ -132,8 +132,9 @@ export function generateAuthUrl(userId: string, userEmail: string, redirectUri: 
   const state = Buffer.from(JSON.stringify({ p: statePayload, h: stateHmac })).toString('base64url');
 
   const scopes = [
-    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile',
   ].join(' ');
 
   const params = new URLSearchParams({
@@ -142,8 +143,8 @@ export function generateAuthUrl(userId: string, userEmail: string, redirectUri: 
     response_type: 'code',
     scope: scopes,
     access_type: 'offline',
-    prompt: 'consent',
-    include_granted_scopes: 'true',
+    prompt: 'consent select_account',
+    include_granted_scopes: 'false',
     state,
   });
 
@@ -171,7 +172,7 @@ export function verifyState(stateStr: string): { userId: string; userEmail: stri
 export async function exchangeCodeForTokens(
   code: string,
   redirectUri: string
-): Promise<{ accessToken: string; refreshToken: string; expiryDate: number; scope: string }> {
+): Promise<{ accessToken: string; refreshToken: string; expiryDate: number; scope: string; email?: string }> {
   const clientId = getClientId();
   const clientSecret = getClientSecret();
 
@@ -204,11 +205,39 @@ export async function exchangeCodeForTokens(
   const expiresIn = Number(data.expires_in) || 3600;
   const expiryDate = Date.now() + (expiresIn * 1000);
 
+  let email = '';
+  if (data.id_token) {
+    try {
+      const parts = data.id_token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload?.email) {
+          email = payload.email;
+        }
+      }
+    } catch {}
+  }
+
+  if (!email && data.access_token) {
+    try {
+      const uRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      });
+      if (uRes.ok) {
+        const uinfo = await uRes.json();
+        if (uinfo?.email) {
+          email = uinfo.email;
+        }
+      }
+    } catch {}
+  }
+
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token || '',
     expiryDate,
     scope: data.scope || '',
+    email,
   };
 }
 
@@ -287,26 +316,56 @@ export function removeUserTokens(userId: string): void {
   }
 }
 
-export function getUserDriveStatus(userId: string): {
+export function getUserDriveStatus(userId: string, expectedEmail?: string): {
   connected: boolean;
   email: string | null;
   hasRefreshToken: boolean;
   expiryDate: number | null;
+  scope?: string;
+  hasReadonlyScope: boolean;
+  isAccountMismatched?: boolean;
 } {
   const map = loadTokensMap();
   const record = map[userId];
   if (!record || !record.accessToken) {
-    return { connected: false, email: null, hasRefreshToken: false, expiryDate: null };
+    return { connected: false, email: null, hasRefreshToken: false, expiryDate: null, hasReadonlyScope: false, isAccountMismatched: false };
   }
+  const scope = record.scope || '';
+  const hasReadonlyScope = scope.includes('drive.readonly') || scope.includes('/auth/drive');
+
+  const isAccountMismatched = Boolean(
+    expectedEmail &&
+    record.email &&
+    expectedEmail.toLowerCase().trim() !== record.email.toLowerCase().trim()
+  );
+
+  if (!hasReadonlyScope) {
+    return {
+      connected: false,
+      email: record.email || null,
+      hasRefreshToken: Boolean(record.refreshToken),
+      expiryDate: record.expiryDate,
+      scope,
+      hasReadonlyScope: false,
+      isAccountMismatched,
+    };
+  }
+
   return {
     connected: true,
     email: record.email || null,
     hasRefreshToken: Boolean(record.refreshToken),
     expiryDate: record.expiryDate,
+    scope,
+    hasReadonlyScope: true,
+    isAccountMismatched,
   };
 }
 
 export async function getValidAccessTokenForUser(userId: string): Promise<string> {
+  if (userId && (userId.startsWith('ya29.') || userId.length > 80)) {
+    return userId;
+  }
   const map = loadTokensMap();
   const record = map[userId];
 
@@ -357,12 +416,17 @@ export interface DriveApiFile {
 
 export async function listUserDriveFiles(
   userId: string,
-  options: { query?: string; tab?: 'recent' | 'my-drive' | 'shared'; pageToken?: string; pageSize?: number } = {}
-): Promise<{ files: DriveApiFile[]; nextPageToken?: string }> {
+  options: { query?: string; tab?: 'recent' | 'my-drive' | 'shared'; pageToken?: string; pageSize?: number; folderId?: string } = {}
+): Promise<{ files: DriveApiFile[]; nextPageToken?: string; missingReadonlyScope?: boolean }> {
   const token = await getValidAccessTokenForUser(userId);
-  const { query = '', tab = 'recent', pageToken, pageSize = 35 } = options;
+  const { query = '', tab = 'my-drive', pageToken, pageSize = 40, folderId } = options;
 
-  const queryParts: string[] = ['trashed = false'];
+  const queryParts: string[] = [
+    'trashed = false',
+  ];
+  if (folderId) {
+    queryParts.push(`'${folderId}' in parents`);
+  }
   if (tab === 'shared') {
     queryParts.push('sharedWithMe = true');
   }
@@ -372,11 +436,14 @@ export async function listUserDriveFiles(
   }
 
   const q = queryParts.join(' and ');
+  const orderBy = tab === 'shared' ? 'sharedWithMeTime desc' : 'modifiedTime desc';
+
   const params = new URLSearchParams({
     pageSize: String(pageSize),
-    fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, iconLink, thumbnailLink, webViewLink, owners(displayName))',
-    orderBy: tab === 'recent' ? 'modifiedTime desc' : 'name asc',
+    fields: 'nextPageToken, files(id, name, mimeType, size, modifiedTime, iconLink, thumbnailLink, webViewLink, owners(displayName), parents)',
+    orderBy,
     q,
+    spaces: 'drive',
     supportsAllDrives: 'true',
     includeItemsFromAllDrives: 'true',
   });
@@ -409,9 +476,27 @@ export async function listUserDriveFiles(
     }
 
     const data = await res.json();
+    const files: DriveApiFile[] = data.files || [];
+
+    let missingReadonlyScope = false;
+    if (files.length === 0 && !query.trim() && !folderId) {
+      // Check if token only has drive.file and lacks drive.readonly
+      try {
+        const tokenRes = await fetch(`https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`);
+        if (tokenRes.ok) {
+          const tInfo = await tokenRes.json();
+          const grantedScope = tInfo.scope || '';
+          if (!grantedScope.includes('drive.readonly') && !grantedScope.includes('/auth/drive ')) {
+            missingReadonlyScope = true;
+          }
+        }
+      } catch {}
+    }
+
     return {
-      files: data.files || [],
+      files,
       nextPageToken: data.nextPageToken,
+      missingReadonlyScope,
     };
   } catch (err: any) {
     clearTimeout(timeoutId);

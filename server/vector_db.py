@@ -193,14 +193,8 @@ def main():
         except Exception as e:
             print(json.dumps({"error": f"Invalid JSON arg: {str(e)}"}))
             sys.exit(1)
-    elif not sys.stdin.isatty() and select_has_data():
-        try:
-            raw = sys.stdin.read()
-            if raw.strip():
-                input_data = json.loads(raw)
-        except Exception as e:
-            print(json.dumps({"error": f"Invalid JSON stdin: {str(e)}"}))
-            sys.exit(1)
+    elif len(sys.argv) == 2:
+        input_data = {}
 
     try:
         if cmd == "insert":
@@ -240,10 +234,6 @@ def main():
     except Exception as e:
         print(json.dumps({"error": str(e)}))
         sys.exit(1)
-
-def select_has_data():
-    import select
-    return select.select([sys.stdin], [], [], 0.0)[0]
 
 if __name__ == "__main__":
     main()

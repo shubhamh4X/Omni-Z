@@ -54,7 +54,8 @@ import {
   Presentation,
   FileCode,
   LogOut,
-  FolderOpen
+  FolderOpen,
+  Folder
 } from 'lucide-react';
 import { ChatMessage, Attachment } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
@@ -62,6 +63,7 @@ import { DnaRingLogo } from './DnaRingLogo';
 import { TemporaryChatIcon } from './TemporaryChatButton';
 import { Tooltip } from './Tooltip';
 import { useAuth } from '../context/AuthContext';
+import { getCachedAccessToken } from '../firebase';
 import { 
   fetchDriveFiles, 
   fetchDriveFileContent, 
@@ -199,12 +201,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [activeSubmenu, setActiveSubmenu] = useState<'uploads' | 'tools' | null>(null);
-  const { user, accessToken, isDriveConnected, driveStatus, driveEmail, connectDrive, disconnectDrive } = useAuth();
+  const { user, accessToken, isDriveConnected, driveStatus, driveEmail, isDriveMismatched, connectDrive, disconnectDrive } = useAuth();
 
   const [showDriveModal, setShowDriveModal] = useState(false);
   const [driveSearchQuery, setDriveSearchQuery] = useState('');
-  const [driveTab, setDriveTab] = useState<'recent' | 'my-drive' | 'shared'>('recent');
+  const [driveTab, setDriveTab] = useState<'recent' | 'my-drive' | 'shared'>('my-drive');
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [currentFolder, setCurrentFolder] = useState<{ id: string; name: string } | null>(null);
+  const [missingDriveScope, setMissingDriveScope] = useState(false);
   const [isLoadingDriveFiles, setIsLoadingDriveFiles] = useState(false);
   const [isConnectingDrive, setIsConnectingDrive] = useState(false);
   const [driveError, setDriveError] = useState<string | null>(null);
@@ -225,13 +229,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const photoFileInputRef = useRef<HTMLInputElement>(null);
   const notebookFileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadDriveFiles = useCallback(async (userIdOrToken: string, tab: 'recent' | 'my-drive' | 'shared', queryStr: string) => {
+  const loadDriveFiles = useCallback(async (userIdOrToken: string, tab: 'recent' | 'my-drive' | 'shared', queryStr: string, folderId?: string) => {
     if (!userIdOrToken) return;
     setIsLoadingDriveFiles(true);
     setDriveError(null);
+    setMissingDriveScope(false);
     try {
-      const result = await fetchDriveFiles(userIdOrToken, { tab, query: queryStr });
+      const result = await fetchDriveFiles(userIdOrToken, { tab, query: queryStr, folderId });
       setDriveFiles(result.files);
+      if (result.missingReadonlyScope) {
+        setMissingDriveScope(true);
+      }
     } catch (err: any) {
       if (
         err.message === 'UNAUTHORIZED_DRIVE_SESSION' || 
@@ -249,25 +257,28 @@ export const ChatView: React.FC<ChatViewProps> = ({
   }, [disconnectDrive]);
 
   useEffect(() => {
-    if (showDriveModal && (isDriveConnected || accessToken) && (user?.uid || accessToken)) {
-      const targetId = user?.uid || accessToken || '';
+    const activeToken = getCachedAccessToken() || accessToken;
+    if (showDriveModal && (isDriveConnected || activeToken) && (user?.uid || activeToken)) {
+      const targetId = activeToken || user?.uid || '';
       const timer = setTimeout(() => {
-        loadDriveFiles(targetId, driveTab, driveSearchQuery);
+        loadDriveFiles(targetId, driveTab, driveSearchQuery, currentFolder?.id);
       }, driveSearchQuery ? 350 : 0);
       return () => clearTimeout(timer);
     }
-  }, [showDriveModal, isDriveConnected, accessToken, user?.uid, driveTab, driveSearchQuery, loadDriveFiles]);
+  }, [showDriveModal, isDriveConnected, accessToken, user?.uid, driveTab, driveSearchQuery, currentFolder?.id, loadDriveFiles]);
 
   const handleConnectDrive = async () => {
     cancelDriveConnectRef.current = false;
     setIsConnectingDrive(true);
     setDriveError(null);
+    setMissingDriveScope(false);
     try {
       const success = await connectDrive();
       if (cancelDriveConnectRef.current) return;
       if (success) {
-        const targetId = user?.uid || accessToken || '';
-        await loadDriveFiles(targetId, driveTab, driveSearchQuery);
+        const token = getCachedAccessToken() || accessToken;
+        const targetId = token || user?.uid || '';
+        await loadDriveFiles(targetId, driveTab, driveSearchQuery, currentFolder?.id);
       }
     } catch (err: any) {
       if (cancelDriveConnectRef.current) return;
@@ -2407,7 +2418,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 {(isDriveConnected || driveStatus === 'connected' || accessToken) && (
                   <button
                     type="button"
-                    onClick={() => loadDriveFiles(user?.uid || accessToken || '', driveTab, driveSearchQuery)}
+                    onClick={() => loadDriveFiles(getCachedAccessToken() || accessToken || user?.uid || '', driveTab, driveSearchQuery, currentFolder?.id)}
                     disabled={isLoadingDriveFiles}
                     title="Refresh files"
                     className="p-1.5 rounded-full hover:bg-[#282a2c] text-[#9aa0a6] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
@@ -2438,10 +2449,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   Allow Omni Z to access your Google Drive so you can search, browse, and select your documents, spreadsheets, and files directly in chat.
                 </p>
 
-                {(driveEmail || user?.email) && (
+                {user?.email && (
                   <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1e1f20] border border-[#3c4043] text-xs text-[#c4c7c5]">
                     <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                    <span>Account: <strong className="text-white font-medium">{driveEmail || user?.email}</strong></span>
+                    <span>Signed-in Omni Z: <strong className="text-white font-medium">{user.email}</strong></span>
                   </div>
                 )}
 
@@ -2512,6 +2523,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
                 )}
 
+                {/* Helpful Google Verification Guide */}
+                <div className="w-full max-w-md mb-4 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-left text-xs space-y-2">
+                  <div className="flex items-center gap-2 text-amber-300 font-semibold">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                    <span>Seeing "Google hasn't verified this app"?</span>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-[11.5px] text-amber-100/90 pl-1 leading-relaxed">
+                    <li>In the Google sign-in window, click <strong className="text-white underline">Advanced</strong> (small text at bottom-left).</li>
+                    <li>Click <strong className="text-white underline">Go to Omni Z (unsafe)</strong>.</li>
+                    <li>Check the checkbox for <strong className="text-white">"See and download all your Google Drive files"</strong>.</li>
+                    <li>Click <strong className="text-white">Continue</strong> to complete connection.</li>
+                  </ol>
+                  <p className="text-[10.5px] text-amber-300/70 pt-0.5 border-t border-amber-500/20">
+                    Google displays this standard warning for all development projects before enterprise verification. As the project developer, it is completely safe to proceed.
+                  </p>
+                </div>
+
                 <div className="w-full max-w-md bg-[#18191b] rounded-xl border border-[#2d2f33] p-3.5 text-left space-y-2.5">
                   <div className="flex items-start gap-2.5">
                     <div className="w-5 h-5 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 mt-0.5">
@@ -2547,6 +2575,45 @@ export const ChatView: React.FC<ChatViewProps> = ({
             ) : (
               /* Connected state: Live Drive file browser */
               <>
+                <div className="mx-5 mt-3 px-3.5 py-2 rounded-xl bg-[#18191b] border border-[#2d2f33] text-xs flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="text-[#9aa0a6] truncate">
+                      Google Drive: <strong className="text-white font-medium">{driveEmail || user?.email || 'Connected'}</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConnectDrive}
+                    disabled={isConnectingDrive}
+                    className="text-[#8ab4f8] hover:text-[#aecbfa] font-semibold text-xs cursor-pointer shrink-0"
+                  >
+                    {isConnectingDrive ? 'Switching...' : 'Switch Account'}
+                  </button>
+                </div>
+
+                {missingDriveScope && (
+                  <div className="mx-5 mt-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-left animate-in fade-in duration-150">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-white mb-0.5">Permission needed to browse files</p>
+                        <p className="text-[#9aa0a6] leading-relaxed mb-2">
+                          Google requires checking the box for <strong>"See and download all your Google Drive files"</strong> during authorization. Reconnect and check that box to browse your Drive.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleConnectDrive}
+                          disabled={isConnectingDrive}
+                          className="px-3 py-1.5 rounded-lg bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#131314] font-semibold text-xs cursor-pointer transition-colors shadow-sm"
+                        >
+                          {isConnectingDrive ? 'Connecting...' : 'Grant Full Drive Permission'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="px-5 pt-3 pb-2 border-b border-[#2d2f33] space-y-2.5">
                   <div className="relative flex items-center bg-[#131314] rounded-xl px-3 py-2 border border-[#2d2f33]">
                     <Search className="w-4 h-4 text-[#80868b] mr-2 shrink-0" />
@@ -2569,18 +2636,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2 text-xs">
-                    {(['recent', 'my-drive', 'shared'] as const).map((tab) => (
+                    {(['my-drive', 'recent', 'shared'] as const).map((tab) => (
                       <button
                         key={tab}
                         type="button"
-                        onClick={() => setDriveTab(tab)}
+                        onClick={() => {
+                          setDriveTab(tab);
+                          setCurrentFolder(null);
+                        }}
                         className={`px-3 py-1.5 rounded-lg capitalize transition-colors cursor-pointer ${
                           driveTab === tab
                             ? 'bg-[#282a2c] text-[#8ab4f8] font-medium border border-[#3c4043]'
                             : 'text-[#9aa0a6] hover:text-[#e3e3e3] hover:bg-[#282a2c]/60'
                         }`}
                       >
-                        {tab === 'recent' ? 'Recent' : tab === 'my-drive' ? 'My Drive' : 'Shared with me'}
+                        {tab === 'my-drive' ? 'My Drive' : tab === 'recent' ? 'Recent' : 'Shared with me'}
                       </button>
                     ))}
 
@@ -2596,6 +2666,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       <span>Upload Local File</span>
                     </button>
                   </div>
+
+                  {currentFolder && (
+                    <div className="px-3 py-1.5 rounded-lg bg-[#282a2c]/80 border border-[#3c4043] flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 text-[#e3e3e3] truncate">
+                        <Folder className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                        <span className="text-[#9aa0a6]">Folder:</span>
+                        <span className="font-medium truncate">{currentFolder.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentFolder(null)}
+                        className="text-[#8ab4f8] hover:underline cursor-pointer shrink-0 font-medium"
+                      >
+                        ← Back to My Drive
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-[260px] max-h-[380px]">
@@ -2619,26 +2706,79 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       </button>
                     </div>
                   ) : driveFiles.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-[#282a2c] text-[#80868b] flex items-center justify-center mx-auto mb-3 border border-[#3c4043]">
+                    <div className="p-8 text-center flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-2xl bg-[#282a2c] text-[#80868b] flex items-center justify-center mb-3 border border-[#3c4043]">
                         <FolderOpen className="w-6 h-6" />
                       </div>
                       <p className="text-sm font-medium text-[#e3e3e3] mb-1">No files found</p>
-                      <p className="text-xs text-[#9aa0a6]">
-                        {driveSearchQuery ? `No files match "${driveSearchQuery}"` : 'No files in this Drive view.'}
+                      <p className="text-xs text-[#9aa0a6] max-w-sm mb-4 leading-relaxed">
+                        {driveSearchQuery
+                          ? `No files match "${driveSearchQuery}"`
+                          : currentFolder
+                          ? `This folder is empty.`
+                          : `No files found in Google Drive for ${driveEmail || user?.email || 'this account'}. If your files are in another account, switch below.`}
                       </p>
+                      <div className="flex flex-wrap items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleConnectDrive}
+                          disabled={isConnectingDrive}
+                          className="px-3.5 py-1.5 rounded-lg bg-[#8ab4f8] hover:bg-[#aecbfa] text-[#131314] font-medium text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-98"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isConnectingDrive ? 'animate-spin' : ''}`} />
+                          <span>Switch / Reconnect Account</span>
+                        </button>
+                        {currentFolder && (
+                          <button
+                            type="button"
+                            onClick={() => setCurrentFolder(null)}
+                            className="px-3 py-1.5 rounded-lg bg-[#282a2c] hover:bg-[#333538] text-[#c4c7c5] text-xs transition-colors cursor-pointer border border-[#3c4043]"
+                          >
+                            Back to Root
+                          </button>
+                        )}
+                        {driveTab !== 'my-drive' && !currentFolder && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDriveTab('my-drive');
+                              setCurrentFolder(null);
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-[#282a2c] hover:bg-[#333538] text-[#c4c7c5] text-xs transition-colors cursor-pointer border border-[#3c4043]"
+                          >
+                            Browse My Drive
+                          </button>
+                        )}
+                        {driveTab !== 'recent' && !currentFolder && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDriveTab('recent');
+                              setCurrentFolder(null);
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-[#282a2c] hover:bg-[#333538] text-[#c4c7c5] text-xs transition-colors cursor-pointer border border-[#3c4043]"
+                          >
+                            Browse Recent
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     driveFiles.map((file) => {
+                      const isFolder = file.mimeType === 'application/vnd.google-apps.folder';
                       const isAttaching = attachingDriveFileId === file.id;
-                      const formattedSize = formatDriveFileSize(file.size);
+                      const formattedSize = isFolder ? 'Folder' : formatDriveFileSize(file.size);
                       const formattedDate = formatDriveModifiedDate(file.modifiedTime);
 
                       return (
                         <div
                           key={file.id}
                           onClick={() => {
-                            if (!isAttaching) handleSelectDriveFile(file);
+                            if (isFolder) {
+                              setCurrentFolder({ id: file.id, name: file.name });
+                            } else if (!isAttaching) {
+                              handleSelectDriveFile(file);
+                            }
                           }}
                           className={`flex items-center justify-between p-3 rounded-xl hover:bg-[#282a2c] border border-transparent hover:border-[#3c4043] transition-all cursor-pointer group ${
                             isAttaching ? 'opacity-70 pointer-events-none bg-[#282a2c]' : ''
@@ -2646,7 +2786,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                         >
                           <div className="flex items-center gap-3 min-w-0 pr-3">
                             <div className="w-8 h-8 rounded-lg bg-[#18191b] border border-[#2d2f33] flex items-center justify-center shrink-0">
-                              {file.mimeType === 'application/vnd.google-apps.document' ? (
+                              {isFolder ? (
+                                <Folder className="w-4 h-4 text-amber-300" />
+                              ) : file.mimeType === 'application/vnd.google-apps.document' ? (
                                 <FileText className="w-4 h-4 text-[#8ab4f8]" />
                               ) : file.mimeType === 'application/vnd.google-apps.spreadsheet' ? (
                                 <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
@@ -2688,7 +2830,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                   </span>
                                 )}
                                 <span className="text-xs font-medium text-[#8ab4f8] hidden group-hover:inline-block">
-                                  Select file
+                                  {isFolder ? 'Open folder →' : 'Select file'}
                                 </span>
                               </>
                             )}
@@ -2708,6 +2850,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   <span className="truncate max-w-[220px] text-[#c4c7c5]">
                     {driveEmail || user?.email || 'Google Drive connected'}
                   </span>
+                  <button
+                    type="button"
+                    onClick={handleConnectDrive}
+                    className="text-[#8ab4f8] hover:underline transition-colors cursor-pointer text-[11px] ml-1"
+                  >
+                    Switch
+                  </button>
                   <button
                     type="button"
                     onClick={disconnectDrive}
